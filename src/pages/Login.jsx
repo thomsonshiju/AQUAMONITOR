@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
 import ParticlesCustom from '../components/ParticlesCustom';
 
 export default function Login() {
@@ -17,7 +15,8 @@ export default function Login() {
     // Handle redirection once user is authenticated
     React.useEffect(() => {
         if (user) {
-            if (user.role === 'admin' || user.email?.includes('admin')) {
+            // Redirect based on role from Firestore
+            if (user.role === 'admin') {
                 navigate('/admin', { replace: true });
             } else {
                 navigate('/', { replace: true });
@@ -47,7 +46,11 @@ export default function Login() {
         try {
             setError('');
             setLoading(true);
-            await login('google-auth-trigger');
+            const success = await login('google-auth-trigger');
+            if (!success) {
+                setError('Google Login failed to sync with database.');
+                setLoading(false);
+            }
             // Navigation handled by useEffect
         } catch (error) {
             console.error(error);

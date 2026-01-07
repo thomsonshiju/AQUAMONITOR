@@ -14,41 +14,68 @@ export const AuthProvider = ({ children }) => {
     const syncUser = async (currentUser) => {
         if (!currentUser) return null;
 
+        console.log("AuthContext: Starting sync for", currentUser.email);
+
         try {
             const userDocRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userDocRef);
 
             let role = 'user';
-            if (currentUser.email === 'admin@aquamonitor.com') {
+            // Hardcoded admin check
+            if (currentUser.email === 'admin@aquamonitor.com' || currentUser.email === 'thomsonshiju@gmail.com') {
                 role = 'admin';
             }
 
             let userData;
             if (userSnap.exists()) {
                 userData = userSnap.data();
-                if (currentUser.email === 'admin@aquamonitor.com' && userData.role !== 'admin') {
+                console.log("AuthContext: Found existing Firestore doc", userData);
+                // Ensure specified emails always have admin role
+                if ((currentUser.email === 'admin@aquamonitor.com' || currentUser.email === 'thomsonshiju@gmail.com') && userData.role !== 'admin') {
+                    console.log("AuthContext: Elevating to admin...");
                     await updateDoc(userDocRef, { role: 'admin' });
                     userData.role = 'admin';
                 }
             } else {
+                console.log("AuthContext: No Firestore doc found, creating one...");
                 userData = {
                     email: currentUser.email,
                     name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
-                    photoURL: currentUser.photoURL || '',
+                    photoURL: '', // Do not take Gmail profile image
                     role: role,
                     createdAt: new Date()
                 };
-                await setDoc(userDocRef, userData);
+                try {
+                    await setDoc(userDocRef, userData);
+                    console.log("AuthContext: Created new Firestore user record");
+                } catch (writeErr) {
+                    console.error("AuthContext: Firestore write FAILED. Check rules.", writeErr);
+                    throw writeErr;
+                }
             }
 
-            const fullUser = { ...currentUser, ...userData };
-            setUser(fullUser);
-            return fullUser;
+            const serializableUser = {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                displayName: currentUser.displayName,
+                photoURL: '', // Explicitly clear to avoid taking Gmail image
+                emailVerified: currentUser.emailVerified,
+                ...userData
+            };
+
+            console.log("AuthContext: Sync success, role is:", serializableUser.role);
+            setUser(serializableUser);
+            return serializableUser;
         } catch (error) {
-            console.error("Error syncing user:", error);
-            // Fallback to basic auth user info if firestore fails
-            setUser(currentUser);
-            return currentUser;
+            console.error("AuthContext: Sync error", error);
+            const basicUser = {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                displayName: currentUser.displayName,
+                role: 'user'
+            };
+            setUser(basicUser);
+            return basicUser;
         }
     };
 
@@ -97,7 +124,9 @@ export const AuthProvider = ({ children }) => {
     const login = async (emailOrData, password) => {
         try {
             if (emailOrData === 'google-auth-trigger') {
+                console.log("START GOOGLE LOGIN");
                 const result = await signInWithPopup(auth, googleProvider);
+                console.log("SUCCESS:", result.user.email);
                 await syncUser(result.user);
                 return true;
             }
@@ -107,6 +136,7 @@ export const AuthProvider = ({ children }) => {
                     await syncUser(result.user);
                     return true;
                 } catch (signInError) {
+                    console.log("ERROR:", signInError.code, signInError.message);
                     if (emailOrData === 'admin@aquamonitor.com' && password === 'admin123') {
                         try {
                             const userCredential = await createUserWithEmailAndPassword(auth, emailOrData, password);
@@ -128,6 +158,7 @@ export const AuthProvider = ({ children }) => {
                 }
             }
         } catch (error) {
+            console.log("ERROR:", error.code, error.message);
             console.error("Login error:", error);
             return false;
         }
@@ -183,20 +214,53 @@ export const AuthProvider = ({ children }) => {
 
     const addUser = async (userData) => {
         try {
-            // Note: Creating a user in Auth via secondary app is complex client-side.
-            // For simple admin dashboard, we might just add to Firestore or need a cloud function.
-            // Here we just add to Firestore for record keeping if that's the intention,
-            // but they won't have Auth login credentials unless created via Auth API.
-            // For valid Auth, typically Admin SDK is used.
-            // Simulating 'adding' by just creating a doc for now.
+            console.log("AuthContext: Admin adding new user to BOTH Auth and Firestore", userData.email);
 
-            // Generate a placeholder ID or use email as ID if desired
-            await setDoc(doc(collection(db, "users")), {
-                ...userData,
-                createdAt: new Date()
-            });
+            // 1. Create the user in Firebase Authentication
+            // Note: Normal createUserWithEmailAndPassword signs the current user out.
+            // We use a secondary Firebase app instance to avoid this.
+            const { initializeApp, deleteApp, getApp } = await import('firebase/app');
+            const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
 
-            return { success: true };
+            let secondaryApp;
+            try {
+                secondaryApp = initializeApp(auth.app.options, "SecondaryAdminApp");
+            } catch (err) {
+                secondaryApp = getApp("SecondaryAdminApp");
+            }
+
+            const secondaryAuth = getAuth(secondaryApp);
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(
+                    secondaryAuth,
+                    userData.email,
+                    userData.password || "DefaultPassword123!" // Ensure a password exists
+                );
+
+                const newUid = userCredential.user.uid;
+                console.log("AuthContext: Auth account created successfully", newUid);
+
+                // 2. Create the Firestore profile
+                const firestoreData = {
+                    email: userData.email,
+                    name: userData.name,
+                    phone: userData.phone || '',
+                    role: userData.role || 'user',
+                    createdAt: new Date()
+                };
+
+                await setDoc(doc(db, "users", newUid), firestoreData);
+                console.log("AuthContext: Firestore profile created successfully");
+
+                // Clean up secondary app to avoid memory leaks/conflicts
+                await deleteApp(secondaryApp);
+
+                return { success: true };
+            } catch (authError) {
+                console.error("AuthContext: Error creating Auth account", authError);
+                return { success: false, error: authError.message };
+            }
         } catch (error) {
             console.error("Add user error:", error);
             return { success: false, error: error.message };
@@ -205,6 +269,9 @@ export const AuthProvider = ({ children }) => {
 
     const deleteUser = async (userId) => {
         try {
+            console.log("AuthContext: Deleting user profile from Firestore", userId);
+            // Note: Deleting from Auth usually requires Admin SDK/Cloud Functions.
+            // We'll delete the Firestore record which hides them from the app.
             await deleteDoc(doc(db, "users", userId));
             return { success: true };
         } catch (error) {
