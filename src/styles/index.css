@@ -1,27 +1,38 @@
 :root {
   /* Color Palette - Premium Blue Theme */
-  --primary: #0ea5e9; /* Sky 500 */
-  --primary-hover: #0284c7; /* Sky 600 */
-  --secondary: #6366f1; /* Indigo 500 */
-  --accent: #f43f5e; /* Rose 500 */
-  
+  --primary: #0ea5e9;
+  /* Sky 500 */
+  --primary-hover: #0284c7;
+  /* Sky 600 */
+  --secondary: #6366f1;
+  /* Indigo 500 */
+  --accent: #f43f5e;
+  /* Rose 500 */
+
   /* Light Theme Colors */
-  --bg-body: #f8fafc; /* Slate 50 */
+  --bg-body: #f8fafc;
+  /* Slate 50 */
   --bg-card: #ffffff;
-  --text-main: #0f172a; /* Slate 900 */
-  --text-muted: #64748b; /* Slate 500 */
-  --border-color: #e2e8f0; /* Slate 200 */
-  
+  --text-main: #0f172a;
+  /* Slate 900 */
+  --text-muted: #64748b;
+  /* Slate 500 */
+  --border-color: #e2e8f0;
+  /* Slate 200 */
+
   /* Status Colors */
-  --success: #10b981; /* Emerald 500 */
-  --warning: #f59e0b; /* Amber 500 */
-  --danger: #ef4444; /* Red 500 */
-  
+  --success: #10b981;
+  /* Emerald 500 */
+  --warning: #f59e0b;
+  /* Amber 500 */
+  --danger: #ef4444;
+  /* Red 500 */
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  
+
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
@@ -29,12 +40,17 @@
 
 [data-theme='dark'] {
   /* Dark Theme Colors */
-  --bg-body: #0f172a; /* Slate 900 */
-  --bg-card: #1e293b; /* Slate 800 */
-  --text-main: #f1f5f9; /* Slate 100 */
-  --text-muted: #94a3b8; /* Slate 400 */
-  --border-color: #334155; /* Slate 700 */
-  
+  --bg-body: #0f172a;
+  /* Slate 900 */
+  --bg-card: #1e293b;
+  /* Slate 800 */
+  --text-main: #f1f5f9;
+  /* Slate 100 */
+  --text-muted: #94a3b8;
+  /* Slate 400 */
+  --border-color: #334155;
+  /* Slate 700 */
+
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3);
 }
@@ -105,7 +121,8 @@ body {
   padding: 1.5rem;
   box-shadow: var(--shadow-md);
   border: 1px solid var(--border-color);
-  backdrop-filter: blur(10px); /* For glassmorphism if bg is transparent-ish */
+  backdrop-filter: blur(10px);
+  /* For glassmorphism if bg is transparent-ish */
 }
 
 /* Inputs */
@@ -126,7 +143,12 @@ body {
 }
 
 /* Typography */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 700;
   line-height: 1.2;
   margin-bottom: 0.5rem;
@@ -148,8 +170,15 @@ a:hover {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Navbar Labels */
@@ -160,6 +189,24 @@ a:hover {
 @media (min-width: 768px) {
   .nav-label {
     display: inline;
+  }
+}
+
+/* Mobile specific padding to avoid overlap with bottom navigation */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 80px;
+    /* Space for bottom nav */
+  }
+}
+
+.hide-mobile {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .hide-mobile {
+    display: flex !important;
   }
 }
 

@@ -52,7 +52,11 @@ export default function SignUp() {
         try {
             setError('');
             setLoading(true);
-            await login('google-auth-trigger');
+            const success = await login('google-auth-trigger');
+            if (!success) {
+                setError('Google Sign Up failed to sync with database.');
+                setLoading(false);
+            }
             // Navigation handled by useEffect
         } catch (error) {
             console.error(error);

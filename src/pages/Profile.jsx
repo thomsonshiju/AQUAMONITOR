@@ -76,39 +76,36 @@ export default function Profile() {
         <div className="fade-in">
             <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <h2 style={{ fontSize: '1.875rem', marginBottom: '0.25rem' }}>Account Profile</h2>
-                    <p style={{ color: 'var(--text-muted)' }}>Manage your identification and security settings</p>
+                    <h2 style={{ fontSize: window.innerWidth < 768 ? '1.5rem' : '1.875rem', marginBottom: '0.25rem' }}>Account Profile</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Manage your identification and security settings</p>
                 </div>
             </div>
 
             <form onSubmit={handleSave}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 1fr) 1.2fr', gap: '1.5rem', alignItems: 'start' }}>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: window.innerWidth < 1024 ? '1fr' : 'minmax(350px, 1fr) 1.2fr',
+                    gap: '1.5rem',
+                    alignItems: 'start'
+                }}>
 
                     {/* Left Column: Personal Info */}
                     <div className="card">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                            {user?.picture ? (
-                                <img
-                                    src={user.picture}
-                                    alt="Profile"
-                                    style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid var(--primary)' }}
-                                />
-                            ) : (
-                                <div style={{
-                                    width: '80px',
-                                    height: '80px',
-                                    borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                                    color: 'white',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '2.5rem',
-                                    fontWeight: 800
-                                }}>
-                                    {formData.name.charAt(0)}
-                                </div>
-                            )}
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '2.5rem',
+                                fontWeight: 800
+                            }}>
+                                {formData.name.charAt(0)}
+                            </div>
                             <div>
                                 <h3 style={{ margin: 0 }}>{formData.name}</h3>
                                 <p style={{ color: 'var(--text-muted)', margin: 0 }}>{user?.role === 'admin' ? 'Administrator' : 'System User'}</p>
