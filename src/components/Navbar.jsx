@@ -35,15 +35,16 @@ export default function Navbar() {
     // Top Brand Bar (Visible on both)
     const BrandBar = () => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-                background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                padding: '0.5rem',
-                borderRadius: '0.5rem',
-                color: 'white',
-                display: 'flex'
-            }}>
-                <Droplets size={24} />
-            </div>
+            <img
+                src="/logo-nav.png"
+                alt="Logo"
+                style={{
+                    width: '40px',
+                    height: '40px',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                }}
+            />
             {!isMobile && (
                 <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 800, background: 'linear-gradient(to right, var(--primary), var(--secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                     AquaMonitor
@@ -56,15 +57,21 @@ export default function Navbar() {
         <>
             {/* Desktop Navbar / Admin Mobile Top Bar */}
             <nav className="card" style={{
-                margin: isMobile ? '0.5rem' : '1rem',
+                margin: 0,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '0.75rem 1.25rem',
                 position: 'sticky',
-                top: isMobile ? '0.5rem' : '1rem',
+                top: 0,
                 zIndex: 100,
-                borderRadius: isMobile ? '1rem' : '1rem'
+                borderRadius: 0,
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderTop: 'none',
+                background: 'var(--bg-card)',
+                backdropFilter: 'blur(10px)',
+                boxShadow: 'var(--shadow-sm)'
             }}>
                 <BrandBar />
 

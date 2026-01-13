@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, googleProvider } from '../firebaseConfig';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged, updatePassword as firebaseUpdatePassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot, getDocs, query, where, writeBatch } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
@@ -269,14 +269,30 @@ export const AuthProvider = ({ children }) => {
 
     const deleteUser = async (userId) => {
         try {
-            console.log("AuthContext: Deleting user profile from Firestore", userId);
-            // Note: Deleting from Auth usually requires Admin SDK/Cloud Functions.
-            // We'll delete the Firestore record which hides them from the app.
-            await deleteDoc(doc(db, "users", userId));
+            console.log("AuthContext: Deleting user profile and data from Firestore", userId);
+
+            const batch = writeBatch(db);
+
+            // 1. Delete user's notifications
+            const notificationsRef = collection(db, "notifications");
+            const q = query(notificationsRef, where("userId", "==", userId));
+            const snapshot = await getDocs(q);
+
+            snapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+
+            // 2. Delete user profile
+            const userRef = doc(db, "users", userId);
+            batch.delete(userRef);
+
+            // Commit both operations
+            await batch.commit();
+
             return { success: true };
         } catch (error) {
             console.error("Delete user error:", error);
-            return { success: false, error: "Network error" };
+            return { success: false, error: error.message };
         }
     };
 

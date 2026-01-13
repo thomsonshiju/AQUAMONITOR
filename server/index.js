@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import pool from './db.js';
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = 3000;
@@ -8,8 +12,60 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+// Email Transporter Configuration
+const transporter = nodemailer.createTransport({
+    service: 'gmail', // You can change this to your preferred service
+    auth: {
+        user: process.env.EMAIL_USER, // Add these to your .env file
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+// Verify connection configuration
+transporter.verify(function (error, success) {
+    if (error) {
+        console.log("Email Server Connection Error:", error);
+    } else {
+        console.log("Email Server is ready to take our messages");
+    }
+});
+
+// ... (rest of the file until endpoints)
+
+// Send Email Endpoint
+app.post('/api/send-email', async (req, res) => {
+    const { to, subject, html } = req.body;
+
+    if (!to || !subject || !html) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error('Email credentials missing in .env');
+        return res.status(500).json({ error: 'Server Email Configuration Error', details: 'EMAIL_USER or EMAIL_PASS missing in server environment.' });
+    }
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: to,
+        subject: subject,
+        html: html
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent: ' + info.response);
+        res.json({ success: true, message: 'Email sent successfully', info });
+    } catch (error) {
+        console.error('Error sending email:', error);
+        res.status(500).json({ error: 'Failed to send email', details: error.message });
+    }
+});
+
 // Get all users (Admin only)
 app.get('/api/users', async (req, res) => {
+
+
     try {
         const [rows] = await pool.query('SELECT id, name, email, phone, role, picture FROM users');
         res.json(rows);
