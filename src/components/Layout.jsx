@@ -8,7 +8,7 @@ export default function Layout() {
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
             <PhoneUpdateModal />
             <Navbar />
-            <main className="container" style={{ flex: 1, paddingBottom: '2rem' }}>
+            <main className="container" style={{ flex: 1, paddingBottom: '2rem', paddingTop: '2rem' }}>
                 <Outlet />
             </main>
             <footer style={{

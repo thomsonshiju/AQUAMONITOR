@@ -1,62 +1,123 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import WaterTank from '../components/WaterTank';
-import { Power, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Power, AlertCircle, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useAutomation } from '../context/AutomationContext';
+import mqtt from 'mqtt';
+import { MQTT_CONFIG } from '../mqttConfig';
 
 export default function Dashboard() {
+    const { settings, loading: settingsLoading } = useAutomation();
     const [waterLevel, setWaterLevel] = useState(45);
     const [isMotorOn, setIsMotorOn] = useState(false);
-    const [systemStatus, setSystemStatus] = useState('Online');
-    const { createNotification } = useNotifications();
+    const [sensors, setSensors] = useState({ temp: 24, turbidity: 0.5 });
+    const [systemStatus, setSystemStatus] = useState('Offline');
+    const { notifications, createNotification } = useNotifications();
     const [lastNotificationLevel, setLastNotificationLevel] = useState(45);
 
-    // Simulation effect
+    // MQTT Client for live data
+    const [mqttClient, setMqttClient] = useState(null);
+
     useEffect(() => {
-        const interval = setInterval(() => {
-            setWaterLevel(prev => {
-                let change = 0;
-                if (isMotorOn) {
-                    change = 1.5; // Filling up
-                } else {
-                    change = -0.2; // Slowly draining (usage)
-                }
+        // Fallback to HiveMQ Public Broker since CloudAMQP WebSockets are not enabled.
+        const url = `ws://broker.hivemq.com:8000/mqtt`;
 
-                const newLevel = Math.min(100, Math.max(0, prev + change));
+        console.log(`Connecting to MQTT at ${url}`);
 
-                // Auto shutoff logic
-                if (newLevel >= 100 && isMotorOn) {
-                    setIsMotorOn(false);
-                }
+        const client = mqtt.connect(url, {
+            clientId: `dashboard_client_${Math.random().toString(16).slice(2, 8)}`,
+            keepalive: 60,
+            reconnectPeriod: 2000,
+            // username/password removed for public broker
+            clean: true,
+        });
 
-                return newLevel;
+        client.on('connect', () => {
+            if (client.disconnecting) return;
+            console.log("MQTT connected in Dashboard");
+            setSystemStatus('Online');
+
+            // Subscribe using the correct topic format
+            client.subscribe('thomson_h2o/data', (err) => {
+                if (err) console.error("Subscription error:", err);
             });
-        }, 1000);
+            setMqttClient(client);
+        });
 
-        return () => clearInterval(interval);
-    }, [isMotorOn]);
+        client.on('error', (err) => {
+            console.error("MQTT Connection Error:", err);
+            setSystemStatus('Error');
+            createNotification('Connection Error', `MQTT Error: ${err.message}`, 'error');
+        });
 
-    // Automatic notifications disabled - use "Test Notification" button instead
-    // Notification effect for water level changes
-    // useEffect(() => {
-    //     if (waterLevel >= 95 && lastNotificationLevel < 95) {
-    //         createNotification('Tank Almost Full', 'Water level has reached 95%. Motor will auto-stop soon.', 'warning');
-    //     } else if (waterLevel <= 20 && lastNotificationLevel > 20) {
-    //         createNotification('Low Water Level', 'Water level is below 20%. Consider turning on the motor.', 'error');
-    //     } else if (waterLevel >= 100 && lastNotificationLevel < 100) {
-    //         createNotification('Tank Full', 'Water tank is now full. Motor has been stopped.', 'success');
-    //     }
-    //     setLastNotificationLevel(waterLevel);
-    // }, [waterLevel]);
+        client.on('offline', () => {
+            console.log("MQTT client offline");
+            setSystemStatus('Offline');
+        });
 
-    // Motor state change notification
-    // useEffect(() => {
-    //     if (isMotorOn) {
-    //         createNotification('Motor Started', 'Water pump is now running.', 'info');
-    //     }
-    // }, [isMotorOn]);
+        client.on('message', (topic, message) => {
+            if (topic === 'thomson_h2o/data') {
+                try {
+                    const data = JSON.parse(message.toString());
+                    setWaterLevel(data.level);
+                    setIsMotorOn(data.motor === "ON");
+                    setSensors({
+                        temp: data.temp || 24,
+                        turbidity: (data.turbidity / 1000).toFixed(1) // Example conversion
+                    });
+                    setSystemStatus('Online');
+                } catch (e) {
+                    console.error("Error parsing MQTT data", e);
+                }
+            }
+        });
+
+        client.on('close', () => setSystemStatus('Offline'));
+
+        return () => client.end();
+    }, []);
+
+    // Automation Logic
+    useEffect(() => {
+        if (!settings || settings.mode !== 'auto') return;
+
+        // Check schedule if enabled
+        if (settings.scheduleEnabled) {
+            const now = new Date();
+            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+            if (currentTime < settings.startTime || currentTime > settings.endTime) {
+                // Outside schedule, if motor is on, maybe turn it off? 
+                // Or just don't auto-start it. For now, let's keep it simple.
+                return;
+            }
+        }
+
+        // Auto ON logic
+        if (waterLevel <= settings.minLevel && !isMotorOn) {
+            // Only publish command if MQTT client is available and connected
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish('aquamonitor/motor/command', 'ON');
+                createNotification('Auto Motor Start', `Water level dropped below ${settings.minLevel}%. Motor started automatically.`, 'info');
+            }
+        }
+
+        // Auto OFF logic
+        if (waterLevel >= settings.maxLevel && isMotorOn) {
+            // Only publish command if MQTT client is available and connected
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish('aquamonitor/motor/command', 'OFF');
+                createNotification('Auto Motor Stop', `Water tank reached ${settings.maxLevel}%. Motor stopped automatically.`, 'success');
+            }
+        }
+    }, [waterLevel, settings, isMotorOn, mqttClient]);
 
     const toggleMotor = () => {
-        setIsMotorOn(!isMotorOn);
+        if (mqttClient && mqttClient.connected) {
+            const nextState = isMotorOn ? 'OFF' : 'ON';
+            mqttClient.publish('aquamonitor/motor/command', nextState);
+            // We don't set state here; we wait for the tank to report back via telemetry
+        }
     };
 
     const [isUpdating, setIsUpdating] = useState(false);
@@ -66,9 +127,20 @@ export default function Dashboard() {
         // Simulate data fetch
         setTimeout(() => {
             setIsUpdating(false);
-            setSystemStatus('Online');
+            // System status is now managed by MQTT connection
+            // setSystemStatus('Online'); 
         }, 1500);
     };
+
+
+
+    if (settingsLoading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px' }}>
+                <Loader2 size={40} className="spin" color="var(--primary)" />
+            </div>
+        );
+    }
 
     return (
         <div className="fade-in">
@@ -95,6 +167,7 @@ export default function Dashboard() {
                             <RefreshCw size={18} className={isUpdating ? 'spin' : ''} />
                             {isUpdating ? 'Updating...' : 'Update Data'}
                         </button>
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', padding: '0.5rem 1rem', borderRadius: '2rem', border: '1px solid var(--border-color)' }}>
                             <span style={{
                                 display: 'inline-block',
@@ -154,11 +227,15 @@ export default function Dashboard() {
                         <div style={{ padding: '1.25rem', background: 'var(--bg-body)', borderRadius: '0.75rem', fontSize: '0.9rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                                 <span style={{ color: 'var(--text-muted)' }}>Operation Mode</span>
-                                <span style={{ fontWeight: 700, color: 'var(--primary)' }}>Automatic</span>
+                                <span style={{ fontWeight: 700, color: 'var(--primary)', textTransform: 'capitalize' }}>
+                                    {settings?.mode || 'Automatic'}
+                                </span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ color: 'var(--text-muted)' }}>Scheduled Time</span>
-                                <span style={{ fontWeight: 700 }}>06:00 PM</span>
+                                <span style={{ fontWeight: 700 }}>
+                                    {settings?.scheduleEnabled ? `${settings.startTime} - ${settings.endTime}` : 'Disabled'}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -167,72 +244,94 @@ export default function Dashboard() {
                     <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                         <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Live Notifications</h3>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 1 }}>
-                            {waterLevel < 20 && (
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '1rem',
-                                    padding: '1rem',
-                                    background: 'rgba(239, 68, 68, 0.08)',
-                                    borderLeft: '4px solid var(--danger)',
+                        {/* Live Notifications from Context */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                            {notifications.slice(0, 3).map(notif => (
+                                <div key={notif.id} style={{
+                                    padding: '0.75rem',
+                                    background: 'var(--bg-body)',
+                                    borderLeft: `4px solid ${notif.type === 'error' ? 'var(--danger)' :
+                                        notif.type === 'warning' ? 'var(--warning)' :
+                                            notif.type === 'success' ? 'var(--success)' : 'var(--primary)'
+                                        }`,
                                     borderRadius: '0.5rem',
-                                    color: 'var(--danger)',
-                                    animation: 'pulse 2s infinite'
+                                    boxShadow: 'var(--shadow-sm)'
                                 }}>
-                                    <AlertCircle size={24} style={{ flexShrink: 0 }} />
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Low water level!</div>
-                                        <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Motor manual start recommended.</div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.2rem' }}>{notif.title}</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{notif.message}</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.4rem', textAlign: 'right' }}>
+                                        {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </div>
                                 </div>
-                            )}
+                            ))}
+                        </div>
 
-                            {waterLevel > 90 && (
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '1rem',
-                                    padding: '1rem',
-                                    background: 'rgba(245, 158, 11, 0.08)',
-                                    borderLeft: '4px solid var(--warning)',
-                                    borderRadius: '0.5rem',
-                                    color: 'var(--warning)'
-                                }}>
-                                    <AlertCircle size={24} style={{ flexShrink: 0 }} />
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Tank almost full</div>
-                                        <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Auto-stop will trigger soon.</div>
+                        {waterLevel < (settings?.minLevel || 20) && (
+                            <div style={{
+                                display: 'flex',
+                                gap: '1rem',
+                                padding: '1rem',
+                                background: 'rgba(239, 68, 68, 0.08)',
+                                borderLeft: '4px solid var(--danger)',
+                                borderRadius: '0.5rem',
+                                color: 'var(--danger)',
+                                animation: 'pulse 2s infinite'
+                            }}>
+                                <AlertCircle size={24} style={{ flexShrink: 0 }} />
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Low water level!</div>
+                                    <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                                        {settings?.mode === 'auto' ? `Auto-fill starting at ${settings.minLevel}%` : 'Manual start recommended.'}
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {waterLevel >= 20 && waterLevel <= 90 && (
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '1rem',
-                                    padding: '1rem',
-                                    background: 'rgba(16, 185, 129, 0.08)',
-                                    borderLeft: '4px solid var(--success)',
-                                    borderRadius: '0.5rem',
-                                    color: 'var(--success)'
-                                }}>
-                                    <CheckCircle2 size={24} style={{ flexShrink: 0 }} />
-                                    <div>
-                                        <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>System Normal</div>
-                                        <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Water level is within safe limits.</div>
-                                    </div>
+                        {waterLevel > (settings?.maxLevel - 10 || 80) && waterLevel < (settings?.maxLevel || 90) && (
+                            <div style={{
+                                display: 'flex',
+                                gap: '1rem',
+                                padding: '1rem',
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                borderLeft: '4px solid var(--warning)',
+                                borderRadius: '0.5rem',
+                                color: 'var(--warning)'
+                            }}>
+                                <AlertCircle size={24} style={{ flexShrink: 0 }} />
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Tank almost full</div>
+                                    <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Auto-stop will trigger at {settings?.maxLevel || 90}%.</div>
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                    <div style={{ background: 'var(--bg-body)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Temp</div>
-                                        <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>24°C</div>
-                                    </div>
-                                    <div style={{ background: 'var(--bg-body)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Turbidity</div>
-                                        <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>0.5 NTU</div>
-                                    </div>
+                        {waterLevel >= (settings?.minLevel || 20) && waterLevel <= (settings?.maxLevel - 10 || 80) && (
+                            <div style={{
+                                display: 'flex',
+                                gap: '1rem',
+                                padding: '1rem',
+                                background: 'rgba(16, 185, 129, 0.08)',
+                                borderLeft: '4px solid var(--success)',
+                                borderRadius: '0.5rem',
+                                color: 'var(--success)'
+                            }}>
+                                <CheckCircle2 size={24} style={{ flexShrink: 0 }} />
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>System Normal</div>
+                                    <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Water level is within safe limits.</div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div style={{ background: 'var(--bg-body)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Temp</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{sensors.temp}°C</div>
+                                </div>
+                                <div style={{ background: 'var(--bg-body)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Turbidity</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{sensors.turbidity} NTU</div>
                                 </div>
                             </div>
                         </div>
@@ -240,5 +339,6 @@ export default function Dashboard() {
                 </div>
             </div>
         </div>
+
     );
 }

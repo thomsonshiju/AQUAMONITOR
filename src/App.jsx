@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { AutomationProvider } from './context/AutomationContext';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -54,11 +55,14 @@ function AppRoutes() {
   );
 }
 
+
 export default function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <AppRoutes />
+        <AutomationProvider>
+          <AppRoutes />
+        </AutomationProvider>
       </NotificationProvider>
     </AuthProvider>
   );

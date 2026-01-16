@@ -111,13 +111,28 @@ export default function Login() {
                 zIndex: 1
             }}>
                 {/* Header */}
-                <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                    <img
+                        src="/logo-v2.png"
+                        alt="AquaMonitor Logo"
+                        style={{
+                            width: '100px',
+                            height: 'auto',
+                            marginBottom: '0.5rem',
+                            display: 'inline-block',
+                            filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.6))'
+                        }}
+                    />
                     <h1 style={{
-                        fontSize: '2.75rem',
+                        fontSize: '2.5rem',
                         fontWeight: '800',
                         color: '#FFFFFF',
-                        marginBottom: '0.5rem',
-                        letterSpacing: '-0.025em'
+                        margin: 0,
+                        marginBottom: '0.25rem',
+                        letterSpacing: '-0.025em',
+                        background: 'linear-gradient(to right, #60A5FA, #A78BFA)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
                     }}>
                         AquaMonitor
                     </h1>

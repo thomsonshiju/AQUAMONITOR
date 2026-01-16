@@ -57,7 +57,7 @@ export default function NotificationCenter() {
     };
 
     const handleNotificationClick = (notification) => {
-        if (!notification.is_read) {
+        if (!notification.read) {
             markAsRead(notification.id);
         }
     };
@@ -126,7 +126,7 @@ export default function NotificationCenter() {
                             notifications.map((notification) => (
                                 <div
                                     key={notification.id}
-                                    className={`notification-item ${notification.is_read ? 'read' : 'unread'} ${notification.type}`}
+                                    className={`notification-item ${notification.read ? 'read' : 'unread'} ${notification.type}`}
                                     onClick={() => handleNotificationClick(notification)}
                                 >
                                     <div className="notification-icon">
@@ -135,17 +135,17 @@ export default function NotificationCenter() {
                                     <div className="notification-content">
                                         <div className="notification-title">
                                             {notification.title}
-                                            {!notification.is_read && <span className="unread-dot"></span>}
+                                            {!notification.read && <span className="unread-dot"></span>}
                                         </div>
                                         <div className="notification-message">
                                             {notification.message}
                                         </div>
                                         <div className="notification-time">
-                                            {formatTime(notification.created_at)}
+                                            {formatTime(notification.createdAt)}
                                         </div>
                                     </div>
                                     <div className="notification-item-actions">
-                                        {!notification.is_read && (
+                                        {!notification.read && (
                                             <button
                                                 className="item-action-btn"
                                                 onClick={(e) => {
