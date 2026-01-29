@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, googleProvider } from '../firebaseConfig';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged, updatePassword as firebaseUpdatePassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot, getDocs, query, where, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
@@ -14,43 +14,50 @@ export const AuthProvider = ({ children }) => {
     const syncUser = async (currentUser) => {
         if (!currentUser) return null;
 
-        console.log("AuthContext: Starting sync for", currentUser.email);
+        // 1. Calculate the base role immediately based on email
+        let determinedRole = 'user';
+        if (currentUser.email === 'admin@aquamonitor.com' ||
+            currentUser.email === 'thomsonshiju@gmail.com' ||
+            currentUser.email === 'manager@aquamonitor.com') {
+            determinedRole = 'admin';
+        }
+
+        console.log("AuthContext: Starting sync for", currentUser.email, "Expected role:", determinedRole);
 
         try {
             const userDocRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userDocRef);
 
-            let role = 'user';
-            // Hardcoded admin check
-            if (currentUser.email === 'admin@aquamonitor.com' || currentUser.email === 'thomsonshiju@gmail.com') {
-                role = 'admin';
-            }
-
             let userData;
             if (userSnap.exists()) {
                 userData = userSnap.data();
-                console.log("AuthContext: Found existing Firestore doc", userData);
-                // Ensure specified emails always have admin role
-                if ((currentUser.email === 'admin@aquamonitor.com' || currentUser.email === 'thomsonshiju@gmail.com') && userData.role !== 'admin') {
-                    console.log("AuthContext: Elevating to admin...");
+                console.log("AuthContext: Found matching Firestore record for", currentUser.email);
+
+                // Keep Admin status synchronized
+                if (determinedRole === 'admin' && userData.role !== 'admin') {
+                    console.log("AuthContext: Correcting record to Admin role...");
                     await updateDoc(userDocRef, { role: 'admin' });
                     userData.role = 'admin';
                 }
             } else {
-                console.log("AuthContext: No Firestore doc found, creating one...");
+                console.log("AuthContext: No Firestore record found, creating NEW record for", currentUser.email);
                 userData = {
                     email: currentUser.email,
                     name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
-                    photoURL: '', // Do not take Gmail profile image
-                    role: role,
-                    createdAt: new Date()
+                    photoURL: currentUser.photoURL || '',
+                    role: determinedRole,
+                    createdAt: serverTimestamp() // Use Firestore Server Timestamp
                 };
+
                 try {
                     await setDoc(userDocRef, userData);
                     console.log("AuthContext: Created new Firestore user record");
-                } catch (writeErr) {
-                    console.error("AuthContext: Firestore write FAILED. Check rules.", writeErr);
-                    throw writeErr;
+                } catch (writeError) {
+                    console.error("AuthContext: Firestore write FAILED.", writeError);
+                    if (writeError.code === 'permission-denied') {
+                        alert("Firebase Permission Error: Your Security Rules are blocking user creation. Please allow 'write' access to the 'users' collection in the Firebase Console.");
+                    }
+                    throw writeError;
                 }
             }
 
@@ -58,24 +65,24 @@ export const AuthProvider = ({ children }) => {
                 uid: currentUser.uid,
                 email: currentUser.email,
                 displayName: currentUser.displayName,
-                photoURL: '', // Explicitly clear to avoid taking Gmail image
+                photoURL: currentUser.photoURL || '',
                 emailVerified: currentUser.emailVerified,
-                ...userData
+                ...userData,
+                role: userData?.role || determinedRole
             };
 
-            console.log("AuthContext: Sync success, role is:", serializableUser.role);
             setUser(serializableUser);
             return serializableUser;
         } catch (error) {
-            console.error("AuthContext: Sync error", error);
-            const basicUser = {
+            console.error("AuthContext: General sync error", error);
+            const fallbackUser = {
                 uid: currentUser.uid,
                 email: currentUser.email,
                 displayName: currentUser.displayName,
-                role: 'user'
+                role: determinedRole
             };
-            setUser(basicUser);
-            return basicUser;
+            setUser(fallbackUser);
+            return fallbackUser;
         }
     };
 
@@ -98,28 +105,35 @@ export const AuthProvider = ({ children }) => {
         return () => unsubscribe();
     }, []);
 
-    // Load all users from Firestore (for Admin)
+    // Load all users from Firestore (Only for Admin)
     useEffect(() => {
-        if (!user) {
+        // Only load strict "all users" list if user is admin
+        // This prevents regular users from loading all users and avoids conflict errors during self-updates
+        if (!user || user.role?.toLowerCase() !== 'admin') {
             setAllUsers([]);
             return;
         }
 
         const usersCollection = collection(db, "users");
+        console.log("AuthContext: Starting user list listener...");
 
         // Real-time listener for users collection
         const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
+            console.log(`AuthContext: Received user list snapshot. Count: ${snapshot.docs.length}`);
             const usersList = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
             setAllUsers(usersList);
         }, (error) => {
-            console.error("Users list listener error:", error);
+            console.error("AuthContext: Users list listener error:", error);
+            if (error.code === 'permission-denied') {
+                alert("ACCESS DENIED: Your Firebase account does not have permission to read the User List. \n\nTo fix this:\n1. Go to Firebase Console > Firestore > Rules\n2. Ensure admins can read the 'users' collection.");
+            }
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [user?.uid, user?.role]);
 
     const login = async (emailOrData, password) => {
         try {
@@ -137,7 +151,8 @@ export const AuthProvider = ({ children }) => {
                     return true;
                 } catch (signInError) {
                     console.log("ERROR:", signInError.code, signInError.message);
-                    if (emailOrData === 'admin@aquamonitor.com' && password === 'admin123') {
+                    if ((emailOrData === 'admin@aquamonitor.com' && password === 'admin123') ||
+                        (emailOrData === 'manager@aquamonitor.com' && password === 'manager123')) {
                         try {
                             const userCredential = await createUserWithEmailAndPassword(auth, emailOrData, password);
                             const userData = {
@@ -199,7 +214,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const updateUser = async (data) => {
-        if (!user || !user.uid) return;
+        if (!user || !user.uid) return { success: false, error: 'No user' };
 
         try {
             const userDocRef = doc(db, "users", user.uid);
@@ -207,8 +222,10 @@ export const AuthProvider = ({ children }) => {
 
             // Update local state immediately
             setUser(prev => ({ ...prev, ...data }));
+            return { success: true };
         } catch (error) {
             console.error("Update error:", error);
+            return { success: false, error: error.message };
         }
     };
 
