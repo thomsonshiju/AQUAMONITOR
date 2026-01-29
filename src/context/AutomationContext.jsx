@@ -47,7 +47,7 @@ export const AutomationProvider = ({ children }) => {
         });
 
         return () => client.end();
-    }, [user]);
+    }, [user?.uid]);
 
     useEffect(() => {
         if (!user) {
@@ -82,7 +82,7 @@ export const AutomationProvider = ({ children }) => {
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [user?.uid]);
 
     const updateSettings = async (newSettings) => {
         if (!user) return { success: false, error: 'User not authenticated' };

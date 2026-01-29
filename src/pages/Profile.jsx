@@ -17,6 +17,8 @@ export default function Profile() {
     const [showPasswords, setShowPasswords] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -28,12 +30,37 @@ export default function Profile() {
         }
     }, [user]);
 
+    const validateField = (name, value) => {
+        let error = '';
+        if (name === 'name') {
+            if (!value.trim()) error = 'Full name is required';
+            else if (value.trim().length < 3) error = 'Name must be at least 3 characters';
+            else if (!/^[a-zA-Z\s]*$/.test(value)) error = 'Name should only contain letters and spaces';
+        }
+        if (name === 'phone') {
+            if (value && !/^\d{10}$/.test(value)) error = 'Phone number must be exactly 10 digits';
+        }
+        if (name === 'newPassword') {
+            if (value.length > 0 && value.length < 6) error = 'Password must be at least 6 characters';
+        }
+        if (name === 'confirmPassword') {
+            if (value !== passwordData.newPassword) error = 'Passwords do not match';
+        }
+
+        setFieldErrors(prev => ({ ...prev, [name]: error }));
+        return !error;
+    };
+
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+        validateField(name, value);
     };
 
     const handlePasswordDataChange = (e) => {
-        setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setPasswordData({ ...passwordData, [name]: value });
+        validateField(name, value);
     };
 
     const handleSave = async (e) => {
@@ -41,34 +68,51 @@ export default function Profile() {
         setError('');
         setMessage('');
 
+        // Final validation check
+        const isNameValid = validateField('name', formData.name);
+        const isPhoneValid = validateField('phone', formData.phone);
+
+        let isPassValid = true;
+        if (isChangingPassword) {
+            const isNewPassValid = validateField('newPassword', passwordData.newPassword);
+            const isConfirmPassValid = validateField('confirmPassword', passwordData.confirmPassword);
+            isPassValid = isNewPassValid && isConfirmPassValid;
+        }
+
+        if (!isNameValid || !isPhoneValid || !isPassValid) {
+            setError('Please correct the errors before saving.');
+            return;
+        }
+
+        setIsSubmitting(true);
         try {
-            // Update profile info
-            await updateUser(formData);
+            // Update profile info (sanitize before send)
+            const sanitizedData = {
+                name: formData.name.trim(),
+                phone: formData.phone.trim()
+            };
+
+            await updateUser(sanitizedData);
 
             // Update password if being changed
             if (isChangingPassword) {
-                if (passwordData.newPassword !== passwordData.confirmPassword) {
-                    setError('Passwords do not match');
-                    return;
-                }
-                if (passwordData.newPassword.length < 6) {
-                    setError('Password must be at least 6 characters');
-                    return;
-                }
-
                 const result = await changePassword(passwordData.newPassword);
                 if (!result.success) {
                     setError(result.error);
+                    setIsSubmitting(false);
                     return;
                 }
                 setIsChangingPassword(false);
                 setPasswordData({ newPassword: '', confirmPassword: '' });
+                setFieldErrors(prev => ({ ...prev, newPassword: '', confirmPassword: '' }));
             }
 
             setMessage('Profile updated successfully!');
             setTimeout(() => setMessage(''), 3000);
         } catch (err) {
             setError('Failed to update profile');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -114,10 +158,17 @@ export default function Profile() {
 
                         <div style={{ display: 'grid', gap: '1.25rem' }}>
                             <div>
-                                <label className="label" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                    <User size={16} /> Full Name
+                                <label className="label" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.9rem', color: fieldErrors.name ? 'var(--danger)' : 'var(--text-muted)' }}>
+                                    <User size={16} /> Full Name {fieldErrors.name && <span style={{ fontSize: '0.75rem', marginLeft: 'auto' }}>({fieldErrors.name})</span>}
                                 </label>
-                                <input type="text" className="input-field" name="name" value={formData.name} onChange={handleChange} />
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    style={{ borderColor: fieldErrors.name ? 'var(--danger)' : '' }}
+                                />
                             </div>
 
                             <div>
@@ -128,10 +179,18 @@ export default function Profile() {
                             </div>
 
                             <div>
-                                <label className="label" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                    <Phone size={16} /> Phone Number
+                                <label className="label" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.9rem', color: fieldErrors.phone ? 'var(--danger)' : 'var(--text-muted)' }}>
+                                    <Phone size={16} /> Phone Number {fieldErrors.phone && <span style={{ fontSize: '0.75rem', marginLeft: 'auto' }}>({fieldErrors.phone})</span>}
                                 </label>
-                                <input type="tel" className="input-field" name="phone" value={formData.phone} onChange={handleChange} placeholder="Update contact number" />
+                                <input
+                                    type="tel"
+                                    className="input-field"
+                                    name="phone"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    placeholder="Update contact number"
+                                    style={{ borderColor: fieldErrors.phone ? 'var(--danger)' : '' }}
+                                />
                             </div>
                         </div>
                     </div>
@@ -174,6 +233,7 @@ export default function Profile() {
                                             value={passwordData.newPassword}
                                             onChange={handlePasswordDataChange}
                                             placeholder="Min. 6 characters"
+                                            style={{ borderColor: fieldErrors.newPassword ? 'var(--danger)' : '' }}
                                         />
                                         <button
                                             type="button"
@@ -182,10 +242,11 @@ export default function Profile() {
                                         >
                                             {showPasswords ? <EyeOff size={18} /> : <Eye size={18} />}
                                         </button>
+                                        {fieldErrors.newPassword && <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.newPassword}</div>}
                                     </div>
 
                                     <div>
-                                        <label className="label" style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Confirm New Password</label>
+                                        <label className="label" style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', color: fieldErrors.confirmPassword ? 'var(--danger)' : 'var(--text-muted)' }}>Confirm New Password</label>
                                         <input
                                             type={showPasswords ? "text" : "password"}
                                             className="input-field"
@@ -193,7 +254,9 @@ export default function Profile() {
                                             value={passwordData.confirmPassword}
                                             onChange={handlePasswordDataChange}
                                             placeholder="Repeat password"
+                                            style={{ borderColor: fieldErrors.confirmPassword ? 'var(--danger)' : '' }}
                                         />
+                                        {fieldErrors.confirmPassword && <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.confirmPassword}</div>}
                                     </div>
 
                                     <button
@@ -246,8 +309,21 @@ export default function Profile() {
                                 </div>
                             )}
 
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', height: '56px', fontSize: '1.1rem', gap: '0.75rem' }}>
-                                <Save size={22} /> Save Profile Changes
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                disabled={isSubmitting || Object.values(fieldErrors).some(err => err)}
+                                style={{
+                                    width: '100%',
+                                    height: '56px',
+                                    fontSize: '1.1rem',
+                                    gap: '0.75rem',
+                                    opacity: (isSubmitting || Object.values(fieldErrors).some(err => err)) ? 0.7 : 1,
+                                    cursor: (isSubmitting || Object.values(fieldErrors).some(err => err)) ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                <Save size={22} className={isSubmitting ? 'spin' : ''} />
+                                {isSubmitting ? 'Updating Profile...' : 'Save Profile Changes'}
                             </button>
                         </div>
                     </div>

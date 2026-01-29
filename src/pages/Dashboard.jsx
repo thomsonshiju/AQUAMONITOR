@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import WaterTank from '../components/WaterTank';
 import { Power, AlertCircle, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
@@ -7,8 +9,22 @@ import mqtt from 'mqtt';
 import { MQTT_CONFIG } from '../mqttConfig';
 
 export default function Dashboard() {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
+    // Redirect admins to Admin Dashboard
+    useEffect(() => {
+        if (user?.role === 'admin') {
+            navigate('/admin', { replace: true });
+        }
+    }, [user, navigate]);
+
     const { settings, loading: settingsLoading } = useAutomation();
-    const [waterLevel, setWaterLevel] = useState(45);
+
+    if (user?.role?.toLowerCase() === 'admin') return null;
+
+    const [waterLevel, setWaterLevel] = useState(0);
+    const [hasReceivedData, setHasReceivedData] = useState(false);
     const [isMotorOn, setIsMotorOn] = useState(false);
     const [sensors, setSensors] = useState({ temp: 24, turbidity: 0.5 });
     const [systemStatus, setSystemStatus] = useState('Offline');
@@ -60,6 +76,7 @@ export default function Dashboard() {
                 try {
                     const data = JSON.parse(message.toString());
                     setWaterLevel(data.level);
+                    setHasReceivedData(true);
                     setIsMotorOn(data.motor === "ON");
                     setSensors({
                         temp: data.temp || 24,
@@ -189,7 +206,25 @@ export default function Dashboard() {
                     alignItems: 'start'
                 }}>
                     {/* Column 1: Water Tank Visual */}
-                    <div style={{ height: '100%' }}>
+                    <div style={{ height: '100%', position: 'relative' }}>
+                        {!hasReceivedData && systemStatus === 'Online' && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                zIndex: 20,
+                                background: 'rgba(0,0,0,0.7)',
+                                color: 'white',
+                                padding: '1rem',
+                                borderRadius: '1rem',
+                                textAlign: 'center',
+                                width: '80%'
+                            }}>
+                                <Loader2 size={24} className="spin" style={{ marginBottom: '0.5rem' }} />
+                                <div style={{ fontSize: '0.9rem' }}>Waiting for ESP32 data...</div>
+                            </div>
+                        )}
                         <WaterTank level={waterLevel} />
                     </div>
 

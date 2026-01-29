@@ -10,18 +10,30 @@ export default function PhoneUpdateModal() {
     // Only show if user is logged in, phone is missing, AND user is not an admin
     if (!user || user.phone || user.role === 'admin') return null;
 
-    const handleSubmit = (e) => {
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        // Sanitize input: remove all non-digits
+        const cleanPhone = phone.replace(/\D/g, '');
 
         // Proper validation: Exactly 10 digits
         const phoneRegex = /^[0-9]{10}$/;
-        if (!phoneRegex.test(phone)) {
+        if (!phoneRegex.test(cleanPhone)) {
             setError('Please enter a valid 10-digit phone number');
+            setLoading(false);
             return;
         }
 
         // Update user context
-        updateUser({ phone });
+        const result = await updateUser({ phone: cleanPhone });
+        if (!result.success) {
+            setError('Failed to update phone number: ' + result.error);
+            setLoading(false);
+        }
     };
 
     return (
@@ -74,8 +86,13 @@ export default function PhoneUpdateModal() {
                         />
                     </div>
 
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                        Save Phone Number
+                    <button
+                        type="submit"
+                        className="btn btn-primary"
+                        style={{ width: '100%', opacity: loading ? 0.7 : 1 }}
+                        disabled={loading}
+                    >
+                        {loading ? 'Saving...' : 'Save Phone Number'}
                     </button>
                 </form>
             </div>

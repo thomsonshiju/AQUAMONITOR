@@ -16,7 +16,7 @@ export default function Login() {
     React.useEffect(() => {
         if (user) {
             // Redirect based on role from Firestore
-            if (user.role === 'admin') {
+            if (user.role?.toLowerCase() === 'admin') {
                 navigate('/admin', { replace: true });
             } else {
                 navigate('/', { replace: true });
@@ -303,8 +303,8 @@ export default function Login() {
                     <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #374151' }}>
                         <button
                             onClick={() => {
-                                setEmail('admin@aquamonitor.com');
-                                setPassword('admin123');
+                                setEmail('manager@aquamonitor.com');
+                                setPassword('manager123');
                             }}
                             style={{
                                 background: 'none',

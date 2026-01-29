@@ -1,12 +1,12 @@
 import React from 'react';
 import Navbar from './Navbar';
-import PhoneUpdateModal from './PhoneUpdateModal';
+
 import { Outlet } from 'react-router-dom';
 
 export default function Layout() {
     return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-            <PhoneUpdateModal />
+
             <Navbar />
             <main className="container" style={{ flex: 1, paddingBottom: '2rem', paddingTop: '2rem' }}>
                 <Outlet />

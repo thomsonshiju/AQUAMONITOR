@@ -23,13 +23,14 @@ const ProtectedRoute = ({ children }) => {
 
 const AdminRoute = ({ children }) => {
   const { user } = useAuth();
-  if (user?.role !== 'admin') {
+  if (user?.role?.toLowerCase() !== 'admin') {
     return <Navigate to="/" replace />;
   }
   return children;
 };
 
 function AppRoutes() {
+  const { user } = useAuth();
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -40,7 +41,9 @@ function AppRoutes() {
           <Layout />
         </ProtectedRoute>
       }>
-        <Route index element={<Dashboard />} />
+        <Route index element={
+          user?.role?.toLowerCase() === 'admin' ? <Admin /> : <Dashboard />
+        } />
         <Route path="status" element={<DeviceStatus />} />
         <Route path="automation" element={<Automation />} />
         <Route path="analytics" element={<Analytics />} />

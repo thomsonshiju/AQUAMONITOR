@@ -56,7 +56,7 @@ export const NotificationProvider = ({ children }) => {
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [user?.uid]);
 
     // Mark notification as read
     const markAsRead = async (notificationId) => {
