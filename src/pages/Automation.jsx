@@ -117,97 +117,101 @@ export default function Automation() {
                     </div>
 
                     {/* Thresholds */}
-                    <div className="card">
-                        <h3 style={{ marginBottom: '1.5rem' }}>Water Level Thresholds</h3>
+                    {mode === 'auto' && (
+                        <div className="card fade-in">
+                            <h3 style={{ marginBottom: '1.5rem' }}>Water Level Thresholds</h3>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                            <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-                                <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                                    <span style={{ fontWeight: 500 }}>Min (ON)</span>
-                                    <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{minLevel}%</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="50"
-                                    value={minLevel}
-                                    onChange={(e) => setMinLevel(parseInt(e.target.value))}
-                                    style={{ width: '100%', accentColor: 'var(--primary)' }}
-                                />
-                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Motor starts at this level</p>
-                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <span style={{ fontWeight: 500 }}>Min (ON)</span>
+                                        <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{minLevel}%</span>
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="50"
+                                        value={minLevel}
+                                        onChange={(e) => setMinLevel(parseInt(e.target.value))}
+                                        style={{ width: '100%', accentColor: 'var(--primary)' }}
+                                    />
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Motor starts at this level</p>
+                                </div>
 
-                            <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-                                <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                                    <span style={{ fontWeight: 500 }}>Max (OFF)</span>
-                                    <span style={{ fontWeight: 700, color: 'var(--secondary)' }}>{maxLevel}%</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="51"
-                                    max="100"
-                                    value={maxLevel}
-                                    onChange={(e) => setMaxLevel(parseInt(e.target.value))}
-                                    style={{ width: '100%', accentColor: 'var(--secondary)' }}
-                                />
-                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Motor stops at this level</p>
+                                <div style={{ padding: '1rem', background: 'var(--bg-body)', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                        <span style={{ fontWeight: 500 }}>Max (OFF)</span>
+                                        <span style={{ fontWeight: 700, color: 'var(--secondary)' }}>{maxLevel}%</span>
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="51"
+                                        max="100"
+                                        value={maxLevel}
+                                        onChange={(e) => setMaxLevel(parseInt(e.target.value))}
+                                        style={{ width: '100%', accentColor: 'var(--secondary)' }}
+                                    />
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Motor stops at this level</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Right Column: Schedule & Constraints */}
                 <div style={{ display: 'grid', gap: '2rem' }}>
                     {/* Schedule */}
-                    <div className="card" style={{ height: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Clock size={20} /> Schedule
-                            </h3>
-                            <label className="switch" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={scheduleEnabled}
-                                    onChange={() => setScheduleEnabled(!scheduleEnabled)}
-                                    style={{ cursor: 'pointer' }}
-                                />
-                                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: scheduleEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
-                                    {scheduleEnabled ? 'Enabled' : 'Disabled'}
-                                </span>
-                            </label>
-                        </div>
-
-                        <div style={{ opacity: scheduleEnabled ? 1 : 0.5, pointerEvents: scheduleEnabled ? 'auto' : 'none', transition: 'all 0.3s ease' }}>
-                            <div style={{ display: 'grid', gap: '1.25rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Start Time</label>
+                    {mode === 'auto' && (
+                        <div className="card fade-in" style={{ height: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Clock size={20} /> Schedule
+                                </h3>
+                                <label className="switch" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                                     <input
-                                        type="time"
-                                        className="input-field"
-                                        value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                        style={{ background: 'var(--bg-body)' }}
+                                        type="checkbox"
+                                        checked={scheduleEnabled}
+                                        onChange={() => setScheduleEnabled(!scheduleEnabled)}
+                                        style={{ cursor: 'pointer' }}
                                     />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>End Time</label>
-                                    <input
-                                        type="time"
-                                        className="input-field"
-                                        value={endTime}
-                                        onChange={(e) => setEndTime(e.target.value)}
-                                        style={{ background: 'var(--bg-body)' }}
-                                    />
-                                </div>
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: scheduleEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                        {scheduleEnabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                </label>
                             </div>
 
-                            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '0.5rem', border: '1px dashed var(--secondary)' }}>
-                                <p style={{ fontSize: '0.85rem', color: 'var(--secondary)', lineHeight: '1.5', margin: 0 }}>
-                                    Motor automation will only be active during these hours to prevent noise at night or early morning.
-                                </p>
+                            <div style={{ opacity: scheduleEnabled ? 1 : 0.5, pointerEvents: scheduleEnabled ? 'auto' : 'none', transition: 'all 0.3s ease' }}>
+                                <div style={{ display: 'grid', gap: '1.25rem' }}>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Start Time</label>
+                                        <input
+                                            type="time"
+                                            className="input-field"
+                                            value={startTime}
+                                            onChange={(e) => setStartTime(e.target.value)}
+                                            style={{ background: 'var(--bg-body)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>End Time</label>
+                                        <input
+                                            type="time"
+                                            className="input-field"
+                                            value={endTime}
+                                            onChange={(e) => setEndTime(e.target.value)}
+                                            style={{ background: 'var(--bg-body)' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '0.5rem', border: '1px dashed var(--secondary)' }}>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--secondary)', lineHeight: '1.5', margin: 0 }}>
+                                        Motor automation will only be active during these hours to prevent noise at night or early morning.
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 

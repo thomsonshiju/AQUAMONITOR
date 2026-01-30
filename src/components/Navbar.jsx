@@ -27,7 +27,7 @@ export default function Navbar() {
     ] : [
         { to: '/', icon: LayoutDashboard, label: 'Home' },
         { to: '/status', icon: Activity, label: 'Status' },
-        { to: '/automation', icon: Settings, label: 'Settings' },
+        { to: '/automation', icon: Settings, label: 'Automation' },
         { to: '/analytics', icon: BarChart3, label: 'Data' },
         { to: '/profile', icon: User, label: 'Profile' },
     ];
@@ -36,11 +36,11 @@ export default function Navbar() {
     const BrandBar = () => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <img
-                src="/logo-nav.png"
+                src="/logo-dashboard.png"
                 alt="Logo"
                 style={{
-                    width: '40px',
-                    height: '40px',
+                    width: '50px',
+                    height: '50px',
                     objectFit: 'contain',
                     filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
                 }}
@@ -100,9 +100,18 @@ export default function Navbar() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     {!isAdmin && !isMobile && <NotificationCenter />}
                     {isAdmin && isMobile && <NotificationCenter />}
-                    <button className="btn btn-outline" onClick={toggleTheme} style={{ padding: '0.5rem' }}>
-                        {isDark ? <Sun size={20} /> : <Moon size={20} />}
-                    </button>
+                    <div className="theme-toggle-wrapper">
+                        <Moon size={14} className={`theme-icon ${isDark ? 'active' : ''}`} />
+                        <label className="theme-switch-slider">
+                            <input
+                                type="checkbox"
+                                checked={!isDark}
+                                onChange={toggleTheme}
+                            />
+                            <span className="theme-switch-thumb"></span>
+                        </label>
+                        <Sun size={14} className={`theme-icon ${!isDark ? 'active' : ''}`} />
+                    </div>
                     <button className="btn btn-outline" onClick={logout} style={{ padding: '0.5rem', color: 'var(--danger)' }}>
                         <LogOut size={20} />
                     </button>

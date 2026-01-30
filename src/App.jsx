@@ -1,8 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import SignUp from './pages/SignUp';
+import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import DeviceStatus from './pages/DeviceStatus';
 import Automation from './pages/Automation';
@@ -33,8 +32,8 @@ function AppRoutes() {
   const { user } = useAuth();
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
+      <Route path="/login" element={<Auth mode="login" />} />
+      <Route path="/signup" element={<Auth mode="signup" />} />
 
       <Route path="/" element={
         <ProtectedRoute>
