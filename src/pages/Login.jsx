@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import ParticlesCustom from '../components/ParticlesCustom';
+
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -96,7 +96,7 @@ export default function Login() {
             position: 'relative',
             overflow: 'hidden'
         }}>
-            <ParticlesCustom />
+
 
             <div style={{
                 width: '100%',

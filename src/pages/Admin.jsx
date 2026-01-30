@@ -573,10 +573,10 @@ export default function Admin() {
                 display: 'grid',
                 gridTemplateColumns: '1.4fr 1fr',
                 gap: '2rem',
-                alignItems: 'start'
+                alignItems: 'stretch' // Ensure columns have equal height
             }}>
                 {/* Left Column: Session and Management */}
-                <div style={{ display: 'grid', gap: '2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                     {/* Admin Login Info */}
                     <div className="card" style={{ background: 'linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.05))', borderColor: 'var(--secondary)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -599,7 +599,7 @@ export default function Admin() {
                     </div>
 
                     {/* User Management */}
-                    <div className="card">
+                    <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                                 <Users size={20} /> User Management
@@ -607,7 +607,7 @@ export default function Admin() {
                             <button className="btn btn-primary" onClick={() => setShowAddModal(true)} style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}>+ Add User</button>
                         </div>
 
-                        <div style={{ overflowX: 'auto' }}>
+                        <div style={{ overflowX: 'auto', flex: 1 }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                                 <thead>
                                     <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
@@ -672,7 +672,7 @@ export default function Admin() {
 
                         {/* Pagination Controls */}
                         {users.length > entriesPerPage && (
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
                                 <button
                                     className="btn btn-outline"
                                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
