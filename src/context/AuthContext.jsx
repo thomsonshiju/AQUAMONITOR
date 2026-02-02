@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, googleProvider } from '../firebaseConfig';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged, updatePassword as firebaseUpdatePassword } from 'firebase/auth';
+import { initializeApp, deleteApp, getApp } from 'firebase/app';
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged, getAuth, updatePassword as firebaseUpdatePassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, onSnapshot, getDocs, query, where, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
@@ -236,8 +237,6 @@ export const AuthProvider = ({ children }) => {
             // 1. Create the user in Firebase Authentication
             // Note: Normal createUserWithEmailAndPassword signs the current user out.
             // We use a secondary Firebase app instance to avoid this.
-            const { initializeApp, deleteApp, getApp } = await import('firebase/app');
-            const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
 
             let secondaryApp;
             try {
