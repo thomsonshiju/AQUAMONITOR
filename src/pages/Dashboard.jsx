@@ -206,7 +206,7 @@ export default function Dashboard() {
                     )}
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '0.75rem',
-                        background: 'rgba(var(--bg-card-rgb), 0.5)', padding: '0.6rem 1.25rem',
+                        padding: '0.6rem 1.25rem',
                         borderRadius: '2rem', border: '1px solid var(--border-color)',
                         flex: isMobile ? 1 : 'none', justifyContent: 'center',
                         backdropFilter: 'blur(10px)', background: 'rgba(var(--bg-card-rgb), 0.2)'
