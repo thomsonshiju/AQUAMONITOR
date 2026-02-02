@@ -5,14 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'react-router-dom', 'react-router']
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
-    chunkSizeWarningLimit: 1600,
+    exclude: ['firebase', '@firebase/firestore']
   }
 })
