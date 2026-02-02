@@ -22,72 +22,126 @@ const hourlyData = [
 ];
 
 export default function Analytics() {
+    const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+
+    React.useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     return (
-        <div className="fade-in">
-            <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h2 style={{ fontSize: '1.875rem', marginBottom: '0.25rem' }}>Data Analytics</h2>
-                    <p style={{ color: 'var(--text-muted)' }}>Water usage patterns and history</p>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div style={{ background: 'var(--bg-card)', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Daily Avg</div>
-                        <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>450L</div>
-                    </div>
-                    <div style={{ background: 'var(--bg-card)', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Efficiency</div>
-                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--success)' }}>94%</div>
-                    </div>
-                </div>
+        <div className="fade-in" style={{ paddingBottom: isMobile ? '5rem' : '2rem' }}>
+            <div style={{ marginBottom: '2.5rem' }}>
+                <h1 style={{ fontSize: isMobile ? '1.75rem' : '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                    Data Analytics
+                </h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: isMobile ? '0.9rem' : '1.1rem' }}>
+                    Historical consumption and reservoir level trends
+                </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            {/* Premium Insight Grid */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(12, 1fr)',
+                gap: isMobile ? '1.25rem' : '2rem',
+                marginBottom: '2rem'
+            }}>
+                {/* 1. Weekly Consumption Trend (Large Panel) */}
+                <div className="card" style={{
+                    gridColumn: isMobile ? 'span 1' : 'span 12',
+                    padding: isMobile ? '1.25rem' : '2.5rem'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: '1.4rem' }}>Consumption Velocity</h3>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Daily volume processed in Liters (Last 7 Days)</span>
+                        </div>
+                        {!isMobile && (
+                            <div style={{ display: 'flex', gap: '1.5rem' }}>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>PEAK DAY</div>
+                                    <div style={{ fontWeight: 700, color: 'var(--primary)' }}>SATURDAY (800L)</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>PERIOD AVG</div>
+                                    <div style={{ fontWeight: 700 }}>521L / day</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
-                {/* Weekly Usage */}
-                <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Weekly Consumption (L)</h3>
-                    <div style={{ height: '300px', width: '100%', marginBottom: '1rem' }}>
+                    <div style={{ height: isMobile ? '280px' : '400px', width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data}>
+                            <BarChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                                <XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} />
-                                <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} />
+                                <XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={12} tickMargin={10} />
+                                <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={12} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '0.5rem', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)' }}
-                                    cursor={{ fill: 'rgba(14, 165, 233, 0.05)' }}
+                                    contentStyle={{
+                                        backgroundColor: 'rgba(var(--bg-card-rgb), 0.95)',
+                                        borderRadius: '1.25rem',
+                                        border: '1px solid var(--border-color)',
+                                        boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
+                                        backdropFilter: 'blur(20px)',
+                                        padding: '1rem'
+                                    }}
+                                    cursor={{ fill: 'rgba(var(--primary-rgb), 0.05)' }}
                                 />
-                                <Bar dataKey="usage" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="usage" fill="var(--primary)" radius={[8, 8, 0, 0]} barSize={isMobile ? 30 : 50} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Peak Day: <strong style={{ color: 'var(--text-main)' }}>Saturday (800L)</strong></span>
-                        <span style={{ color: 'var(--text-muted)' }}>Trend: <strong style={{ color: 'var(--success)' }}>↓ 12% vs last week</strong></span>
-                    </div>
                 </div>
 
-                {/* Level Trend */}
-                <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>24h Level Dynamics (%)</h3>
-                    <div style={{ height: '300px', width: '100%', marginBottom: '1rem' }}>
+                {/* 2. Level Dynamics (Side by Side on Desktop) */}
+                <div className="card" style={{
+                    gridColumn: isMobile ? 'span 1' : 'span 8',
+                    padding: isMobile ? '1.25rem' : '2.5rem'
+                }}>
+                    <h3 style={{ margin: '0 0 2rem', fontSize: '1.25rem' }}>Reservoir Level Dynamics (%)</h3>
+                    <div style={{ height: '300px', width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={hourlyData}>
+                            <LineChart data={hourlyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                                <XAxis dataKey="time" stroke="var(--text-muted)" axisLine={false} tickLine={false} />
-                                <YAxis stroke="var(--text-muted)" domain={[0, 100]} axisLine={false} tickLine={false} />
+                                <XAxis dataKey="time" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={12} tickMargin={10} />
+                                <YAxis stroke="var(--text-muted)" domain={[0, 100]} axisLine={false} tickLine={false} fontSize={12} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: 'var(--bg-card)', borderRadius: '0.5rem', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)' }}
+                                    contentStyle={{
+                                        backgroundColor: 'rgba(var(--bg-card-rgb), 0.95)',
+                                        borderRadius: '1.25rem',
+                                        border: '1px solid var(--border-color)',
+                                        padding: '1rem'
+                                    }}
                                 />
-                                <Line type="monotone" dataKey="level" stroke="var(--secondary)" strokeWidth={3} dot={{ fill: 'var(--secondary)', r: 4 }} activeDot={{ r: 6 }} />
+                                <Line
+                                    type="monotone"
+                                    dataKey="level"
+                                    stroke="var(--secondary)"
+                                    strokeWidth={4}
+                                    dot={{ fill: 'var(--secondary)', r: 6, strokeWidth: 3, stroke: 'var(--bg-card)' }}
+                                    activeDot={{ r: 8, strokeWidth: 0 }}
+                                />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
-                    <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Lowest: <strong style={{ color: 'var(--danger)' }}>40% (16:00)</strong></span>
-                        <span style={{ color: 'var(--text-muted)' }}>Last Pump: <strong style={{ color: 'var(--text-main)' }}>20:00 (Filled to 90%)</strong></span>
-                    </div>
                 </div>
 
+                {/* 3. Operational KPIs (Stacked Beside Charts on Desktop) */}
+                <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'grid', gap: '1.5rem' }}>
+                    {[
+                        { label: 'Overall Efficiency', value: '94.2%', note: 'Resource utilization', color: 'var(--success)' },
+                        { label: 'Critical Thresholds', value: '2 Events', note: 'Low level alerts triggered', color: 'var(--warning)' },
+                        { label: 'Estimated M-1', value: '13.5k L', note: 'Projected monthly volume', color: 'var(--text-main)' }
+                    ].map((kpi, i) => (
+                        <div key={i} className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>{kpi.label}</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: kpi.color }}>{kpi.value}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{kpi.note}</div>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );

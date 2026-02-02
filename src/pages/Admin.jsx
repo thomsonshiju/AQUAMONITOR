@@ -59,6 +59,18 @@ function BroadcastNotificationPanel({
                 const targetUsers = users.filter(u => targets.includes(u.id));
                 console.log(`Attempting to send emails to ${targetUsers.length} users`);
 
+                const getTypeStyles = (type) => {
+                    const themes = {
+                        success: { color: '#10b981', label: 'SUCCESS', icon: '✅' },
+                        warning: { color: '#f59e0b', label: 'WARNING', icon: '⚠️' },
+                        error: { color: '#ef4444', label: 'CRITICAL', icon: '🚨' },
+                        info: { color: '#0ea5e9', label: 'INFORMATION', icon: 'ℹ️' }
+                    };
+                    return themes[type] || themes.info;
+                };
+
+                const style = getTypeStyles(notificationData.type);
+
                 let successCount = 0;
                 let failCount = 0;
                 let lastError = '';
@@ -70,22 +82,50 @@ function BroadcastNotificationPanel({
                     }
                     try {
                         console.log(`Sending email to ${user.email}...`);
-                        const response = await fetch('http://localhost:3000/api/send-email', {
+                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3005';
+                        const response = await fetch(`${apiUrl}/api/send-email`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 to: user.email,
-                                subject: notificationData.title,
+                                subject: `${style.icon} [${style.label}] ${notificationData.title}`,
                                 html: `
-                                <div style="font-family: sans-serif; padding: 20px; color: #333;">
-                                    <h2 style="color: #0ea5e9;">AquaMonitor Notification</h2>
-                                    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #0ea5e9;">
-                                        <h3 style="margin-top: 0;">${notificationData.title}</h3>
-                                        <p style="font-size: 16px; line-height: 1.5;">${notificationData.message}</p>
+                                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px 20px; color: #1e293b; background-color: #f8fafc; min-height: 100%;">
+                                    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0;">
+                                        <!-- Decorative Header -->
+                                        <div style="background: ${style.color}; height: 8px;"></div>
+                                        
+                                        <div style="padding: 32px;">
+                                            <div style="display: flex; align-items: center; margin-bottom: 24px;">
+                                                <span style="background: ${style.color}15; color: ${style.color}; padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 800; letter-spacing: 0.05em; display: inline-block;">
+                                                    ${style.label}
+                                                </span>
+                                            </div>
+                                            
+                                            <h2 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px 0; line-height: 1.2;">
+                                                ${notificationData.title}
+                                            </h2>
+                                            
+                                            <div style="background: #f1f5f9; border-radius: 12px; padding: 24px; border-left: 4px solid ${style.color};">
+                                                <p style="font-size: 16px; line-height: 1.6; margin: 0; color: #334155;">
+                                                    ${notificationData.message}
+                                                </p>
+                                            </div>
+                                            
+                                            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+                                                <p style="font-size: 14px; color: #64748b; margin: 0;">
+                                                    Best regards,<br>
+                                                    <strong>AquaMonitor Systems</strong>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style="background: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+                                            <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em;">
+                                                This is a secure system broadcast. No action is required unless specified.
+                                            </p>
+                                        </div>
                                     </div>
-                                    <p style="color: #64748b; font-size: 12px; margin-top: 20px;">
-                                        You received this email because you are a user of AquaMonitor.
-                                    </p>
                                 </div>
                             `
                             })
@@ -93,7 +133,6 @@ function BroadcastNotificationPanel({
 
                         if (!response.ok) {
                             const errorData = await response.json().catch(() => ({}));
-                            // Try to parse JSON, fallback if response is not JSON
                             throw new Error(errorData.details || errorData.error || `Server Error: ${response.status}`);
                         }
 
@@ -109,7 +148,7 @@ function BroadcastNotificationPanel({
                 await Promise.all(emailPromises);
 
                 if (failCount > 0) {
-                    alert(`Email sending complete.\nSuccess: ${successCount}\nFailed: ${failCount}\n\nLast Error: ${lastError}\n\nMake sure the backend server is running on port 3000 and email credentials are correct.`);
+                    alert(`Email sending complete.\nSuccess: ${successCount}\nFailed: ${failCount}\n\nLast Error: ${lastError}`);
                 }
             }
 
@@ -173,17 +212,36 @@ function BroadcastNotificationPanel({
     return (
         <form onSubmit={handleSendNotification} id="broadcast-panel">
             <div style={{ display: 'grid', gap: '1.5rem' }}>
-                {/* Success Message */}
+                {/* Success Message Banner */}
                 {successMessage && (
                     <div style={{
-                        padding: '1rem',
-                        background: 'linear-gradient(135deg, rgba(46, 204, 113, 0.1), rgba(39, 174, 96, 0.05))',
-                        border: '1px solid rgba(46, 204, 113, 0.3)',
-                        borderRadius: '0.5rem',
-                        color: '#27ae60',
-                        fontWeight: 500
+                        padding: '1rem 1.25rem',
+                        background: 'rgba(16, 185, 129, 0.08)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        borderRadius: '1rem',
+                        color: '#059669',
+                        fontWeight: 700,
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        animation: 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)'
                     }}>
-                        {successMessage}
+                        <div style={{
+                            background: '#10b981',
+                            color: 'white',
+                            borderRadius: '50%',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)'
+                        }}>
+                            <CheckCircle size={16} strokeWidth={3} />
+                        </div>
+                        {successMessage.replace('✅ ', '')}
                     </div>
                 )}
 
@@ -440,6 +498,13 @@ function BroadcastNotificationPanel({
 export default function Admin() {
     const [showAddModal, setShowAddModal] = React.useState(false);
     const { user, allUsers, addUser, deleteUser } = useAuth();
+    const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+
+    React.useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Broadcast State (Lifted)
     const [notificationData, setNotificationData] = React.useState({
@@ -492,72 +557,61 @@ export default function Admin() {
 
     // Handler for messaging a specific user
     const handleMessageUser = (userId) => {
-        // Set target type to selected and select the specific user
         setNotificationData(prev => ({ ...prev, targetType: 'selected' }));
         setSelectedUserIds([userId]);
-
-        // Scroll to broadcast panel
         const panel = document.getElementById('broadcast-panel');
         if (panel) {
             panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Focus on title input if possible, or just visual focus
             const titleInput = panel.querySelector('input[type="text"]');
             if (titleInput) titleInput.focus();
         }
     };
 
     return (
-        <div className="fade-in">
+        <div className="fade-in" style={{ paddingBottom: isMobile ? '4rem' : '2rem' }}>
             {showAddModal && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    zIndex: 200, backdropFilter: 'blur(4px)'
+                    zIndex: 2000, backdropFilter: 'blur(10px)'
                 }}>
-                    <div className="card" style={{ width: '400px', padding: '2rem' }}>
-                        <h3 style={{ marginBottom: '1.5rem' }}>Add New User</h3>
-                        <form onSubmit={handleAddUser}>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Name</label>
+                    <div className="card" style={{ width: isMobile ? '90%' : '450px', padding: '2rem', borderRadius: '1.5rem' }}>
+                        <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Create New User</h3>
+                        <form onSubmit={handleAddUser} style={{ display: 'grid', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Name</label>
                                 <input className="input-field" required
                                     value={newUserFormatted.name}
                                     onChange={e => setNewUserFormatted({ ...newUserFormatted, name: e.target.value })}
                                 />
                             </div>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Email</label>
                                 <input className="input-field" type="email" required
                                     value={newUserFormatted.email}
                                     onChange={e => setNewUserFormatted({ ...newUserFormatted, email: e.target.value })}
                                 />
                             </div>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Phone</label>
-                                <input className="input-field" type="tel"
-                                    value={newUserFormatted.phone}
-                                    onChange={e => setNewUserFormatted({ ...newUserFormatted, phone: e.target.value })}
-                                />
-                            </div>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Password</label>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Password</label>
                                 <input className="input-field" type="password" required
                                     value={newUserFormatted.password}
                                     onChange={e => setNewUserFormatted({ ...newUserFormatted, password: e.target.value })}
                                 />
                             </div>
-                            <div style={{ marginBottom: '1.5rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Role</label>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Role</label>
                                 <select className="input-field"
                                     value={newUserFormatted.role}
                                     onChange={e => setNewUserFormatted({ ...newUserFormatted, role: e.target.value })}
                                 >
-                                    <option value="user">User</option>
-                                    <option value="admin">Admin</option>
+                                    <option value="user">System User</option>
+                                    <option value="admin">Administrator</option>
                                 </select>
                             </div>
-                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                                <button type="button" className="btn btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary">Create User</button>
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                                <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setShowAddModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary" style={{ flex: 2 }}>Create User</button>
                             </div>
                         </form>
                     </div>
@@ -565,101 +619,100 @@ export default function Admin() {
             )}
 
             <div style={{ marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '1.875rem' }}>Admin Panel</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Authorized personnel only</p>
+                <h2 style={{ fontSize: isMobile ? '1.5rem' : '1.875rem', marginBottom: '0.25rem' }}>Admin Console</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>System orchestration and user management</p>
             </div>
 
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1.4fr 1fr',
-                gap: '2rem',
-                alignItems: 'stretch' // Ensure columns have equal height
+                gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr',
+                gap: '1.5rem',
+                alignItems: 'stretch'
             }}>
-                {/* Left Column: Session and Management */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                    {/* Admin Login Info */}
-                    <div className="card" style={{ background: 'linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.05))', borderColor: 'var(--secondary)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
+                    {/* Admin Profile Summary */}
+                    <div className="card" style={{
+                        background: 'rgba(var(--bg-card-rgb), 0.5)',
+                        borderColor: 'var(--secondary)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'var(--secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                                    {user?.name?.charAt(0) || 'A'}
+                                <div style={{
+                                    width: '48px', height: '48px', borderRadius: '1rem',
+                                    background: 'linear-gradient(135deg, var(--secondary), var(--primary))',
+                                    color: 'white', display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', fontWeight: 800, fontSize: '1.25rem'
+                                }}>
+                                    {user?.name?.charAt(0)}
                                 </div>
-                                <div>
-                                    <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{user?.name}</div>
-                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{user?.email}</div>
+                                <div style={{ overflow: 'hidden' }}>
+                                    <div style={{ fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{user?.name}</div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{user?.email}</div>
                                 </div>
                             </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                    <Shield size={16} /> Administrator
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--secondary)', fontWeight: 700, fontSize: '0.8rem' }}>
+                                    <Shield size={14} /> ADMIN
                                 </div>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Active Session</div>
+                                <div style={{ color: 'var(--success)', fontSize: '0.75rem', fontWeight: 500 }}>Session Live</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* User Management */}
-                    <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    {/* User Management Table */}
+                    <div className="card" style={{
+                        flex: 1,
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: isMobile ? '600px' : 'auto'
+                    }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.1rem' }}>
                                 <Users size={20} /> User Management
                             </h3>
-                            <button className="btn btn-primary" onClick={() => setShowAddModal(true)} style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}>+ Add User</button>
+                            <button className="btn btn-primary" onClick={() => setShowAddModal(true)} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', borderRadius: '1rem' }}>
+                                Add User
+                            </button>
                         </div>
 
-                        <div style={{ overflowX: 'auto', flex: 1 }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <div style={{ overflowX: 'auto', margin: '0 -1.25rem', flex: 1 }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
                                 <thead>
-                                    <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                                        <th style={{ padding: '1rem', fontWeight: 600 }}>Name</th>
-                                        <th style={{ padding: '1rem', fontWeight: 600 }}>Email</th>
-                                        <th style={{ padding: '1rem', fontWeight: 600 }}>Phone</th>
-                                        <th style={{ padding: '1rem', fontWeight: 600 }}>Role</th>
-                                        <th style={{ padding: '1rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+                                    <tr style={{ background: 'rgba(var(--bg-card-rgb), 0.2)' }}>
+                                        <th style={{ padding: '1rem 1.25rem', textAlign: 'left', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>User</th>
+                                        <th style={{ padding: '1rem 1.25rem', textAlign: 'left', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
+                                        <th style={{ padding: '1rem 1.25rem', textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {currentUsers.map((user) => (
-                                        <tr key={user.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                            <td style={{ padding: '1rem' }}>{user.name}</td>
-                                            <td style={{ padding: '1rem' }}>{user.email}</td>
-                                            <td style={{ padding: '1rem' }}>{user.phone || '-'}</td>
-                                            <td style={{ padding: '1rem' }}>
+                                    {currentUsers.map((u) => (
+                                        <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                            <td style={{ padding: '1rem 1.25rem' }}>
+                                                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.name}</div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                                            </td>
+                                            <td style={{ padding: '1rem 1.25rem' }}>
                                                 <span style={{
-                                                    padding: '0.25rem 0.75rem',
-                                                    borderRadius: '1rem',
-                                                    background: user.role === 'admin' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(148, 163, 184, 0.1)',
-                                                    color: user.role === 'admin' ? 'var(--secondary)' : 'var(--text-muted)',
-                                                    fontSize: '0.875rem',
-                                                    fontWeight: 500
+                                                    padding: '0.2rem 0.6rem',
+                                                    borderRadius: '0.5rem',
+                                                    background: u.role === 'admin' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                                                    color: u.role === 'admin' ? 'var(--secondary)' : 'var(--text-muted)',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    textTransform: 'uppercase'
                                                 }}>
-                                                    {user.role}
+                                                    {u.role}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                                    <button
-                                                        className="btn btn-outline"
-                                                        onClick={() => handleMessageUser(user.id)}
-                                                        style={{
-                                                            padding: '0.5rem',
-                                                            color: 'var(--secondary)',
-                                                            borderColor: 'var(--secondary)'
-                                                        }}
-                                                        title="Message User"
-                                                    >
+                                            <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                                                    <button className="btn btn-outline" onClick={() => handleMessageUser(u.id)} style={{ padding: '0.4rem', borderRadius: '0.75rem' }}>
                                                         <MessageCircle size={16} />
                                                     </button>
-                                                    <button
-                                                        className="btn btn-outline"
-                                                        onClick={() => handleDeleteUser(user.id, user.name)}
-                                                        style={{
-                                                            padding: '0.5rem',
-                                                            color: '#e74c3c',
-                                                            borderColor: '#e74c3c'
-                                                        }}
-                                                        title="Delete User"
-                                                    >
+                                                    <button className="btn btn-outline" onClick={() => handleDeleteUser(u.id, u.name)} style={{ padding: '0.4rem', borderRadius: '0.75rem', color: 'var(--danger)' }}>
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </div>
@@ -670,48 +723,48 @@ export default function Admin() {
                             </table>
                         </div>
 
-                        {/* Pagination Controls */}
+                        {/* Pagination */}
                         {users.length > entriesPerPage && (
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
-                                <button
-                                    className="btn btn-outline"
-                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                    disabled={currentPage === 1}
-                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                                >
-                                    Previous
-                                </button>
-                                <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                    Page <strong>{currentPage}</strong> of {totalPages}
-                                </span>
-                                <button
-                                    className="btn btn-outline"
-                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
-                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                                >
-                                    Next
-                                </button>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages}</div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(p => p - 1)}
+                                        className="btn btn-outline"
+                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                                    >Prev</button>
+                                    <button
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(p => p + 1)}
+                                        className="btn btn-outline"
+                                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                                    >Next</button>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Right Column: Actions */}
-                <div style={{ display: 'grid', gap: '2rem' }}>
-                    <div className="card" style={{ height: '100%' }}>
-                        <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Bell size={20} /> Broadcast
-                        </h3>
-                        {/* Render panel with props */}
-                        <BroadcastNotificationPanel
-                            users={users}
-                            notificationData={notificationData}
-                            setNotificationData={setNotificationData}
-                            selectedUserIds={selectedUserIds}
-                            setSelectedUserIds={setSelectedUserIds}
-                        />
-                    </div>
+                {/* Broadcast Column */}
+                <div className="card" style={{
+                    position: isMobile ? 'static' : 'sticky',
+                    top: '5rem',
+                    height: '100%',
+                    minHeight: isMobile ? '600px' : 'auto',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
+                    <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.1rem' }}>
+                        <Bell size={20} /> System Broadcast
+                    </h3>
+                    <BroadcastNotificationPanel
+                        users={users}
+                        notificationData={notificationData}
+                        setNotificationData={setNotificationData}
+                        selectedUserIds={selectedUserIds}
+                        setSelectedUserIds={setSelectedUserIds}
+                    />
                 </div>
             </div>
         </div>

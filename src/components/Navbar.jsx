@@ -55,39 +55,41 @@ export default function Navbar() {
 
     return (
         <>
-            {/* Desktop Navbar / Admin Mobile Top Bar */}
+            {/* Top Bar - Brand & Actions */}
             <nav className="card" style={{
                 margin: 0,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '0.75rem 1.25rem',
+                padding: '0.75rem 1rem',
                 position: 'sticky',
                 top: 0,
-                zIndex: 100,
+                zIndex: 1000,
                 borderRadius: 0,
                 borderLeft: 'none',
                 borderRight: 'none',
                 borderTop: 'none',
-                background: 'var(--bg-card)',
-                backdropFilter: 'blur(10px)',
+                background: 'rgba(var(--bg-card-rgb), 0.8)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
                 boxShadow: 'var(--shadow-sm)'
             }}>
                 <BrandBar />
 
+                {/* Desktop Nav Items */}
                 {!isMobile && (
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.25rem' }}>
                         {navItems.map((item) => (
                             <NavLink
                                 key={item.label}
                                 to={item.to}
-                                className={({ isActive }) => `btn ${isActive ? 'btn-primary' : 'btn-outline'}`}
+                                className={({ isActive }) => isActive ? 'btn btn-primary' : 'btn btn-outline'}
                                 style={({ isActive }) => ({
-                                    border: isActive ? 'none' : '1px solid transparent',
+                                    border: 'none',
                                     background: isActive ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'transparent',
                                     color: isActive ? 'white' : 'var(--text-muted)',
-                                    padding: '0.6rem 1rem',
-                                    transition: 'all 0.3s ease'
+                                    padding: '0.6rem 1.25rem',
+                                    borderRadius: '1rem'
                                 })}
                             >
                                 <item.icon size={18} />
@@ -97,10 +99,11 @@ export default function Navbar() {
                     </div>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {!isAdmin && !isMobile && <NotificationCenter />}
-                    {isAdmin && isMobile && <NotificationCenter />}
-                    <div className="theme-toggle-wrapper">
+                {/* Secondary Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {!isAdmin && <NotificationCenter />}
+
+                    <div className="theme-toggle-wrapper hide-mobile">
                         <Moon size={14} className={`theme-icon ${isDark ? 'active' : ''}`} />
                         <label className="theme-switch-slider">
                             <input
@@ -112,48 +115,39 @@ export default function Navbar() {
                         </label>
                         <Sun size={14} className={`theme-icon ${!isDark ? 'active' : ''}`} />
                     </div>
-                    <button className="btn btn-outline" onClick={logout} style={{ padding: '0.5rem', color: 'var(--danger)' }}>
+
+                    <button className="btn btn-outline" onClick={logout} style={{
+                        padding: '0.5rem',
+                        color: 'var(--danger)',
+                        border: 'none',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        borderRadius: '0.75rem'
+                    }}>
                         <LogOut size={20} />
                     </button>
                 </div>
             </nav>
 
-            {/* Mobile Bottom Navigation (Only for Users) */}
-            {isMobile && !isAdmin && (
-                <div style={{
-                    position: 'fixed',
-                    bottom: '1rem',
-                    left: '1rem',
-                    right: '1rem',
-                    background: 'var(--bg-card)',
-                    borderRadius: '1.25rem',
-                    padding: '0.75rem',
-                    display: 'flex',
-                    justifyContent: 'space-around',
-                    alignItems: 'center',
-                    boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
-                    border: '1px solid var(--border-color)',
-                    zIndex: 1000,
-                    backdropFilter: 'blur(10px)'
-                }}>
+            {/* Mobile Bottom Tab Bar (iOS Feel) */}
+            {isMobile && (
+                <div className="mobile-bottom-nav">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.label}
                             to={item.to}
-                            style={({ isActive }) => ({
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: '4px',
-                                textDecoration: 'none',
-                                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                                transition: 'all 0.3s ease'
-                            })}
+                            className={({ isActive }) => `nav-item-mobile ${isActive ? 'active' : ''}`}
                         >
-                            <item.icon size={22} />
-                            <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>{item.label}</span>
+                            {({ isActive }) => (
+                                <>
+                                    <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                                    <span>{item.label}</span>
+                                </>
+                            )}
                         </NavLink>
                     ))}
+                    {/* Theme Toggle for Mobile inside Bottom Nav or Profile? 
+                        Let's keep it simple for now as per iOS standards. 
+                    */}
                 </div>
             )}
         </>

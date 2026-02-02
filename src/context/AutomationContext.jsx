@@ -28,8 +28,7 @@ export const AutomationProvider = ({ children }) => {
         if (!user) return;
 
         const protocol = 'wss';
-        const path = '/mqtt';
-        const url = `${protocol}://${MQTT_CONFIG.hostname}:${MQTT_CONFIG.port}${path}`;
+        const url = `${protocol}://${MQTT_CONFIG.hostname}:${MQTT_CONFIG.port}${MQTT_CONFIG.path}`;
 
         console.log(`AutomationContext connecting to MQTT at ${url}`);
 
