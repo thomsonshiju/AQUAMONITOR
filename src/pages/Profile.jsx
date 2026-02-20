@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Save, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Eye, EyeOff, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Profile() {
     const { user, updateUser, changePassword } = useAuth();
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -21,6 +22,8 @@ export default function Profile() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
         if (user) {
             setFormData({
                 name: user.name || '',
@@ -28,6 +31,7 @@ export default function Profile() {
                 phone: user.phone || ''
             });
         }
+        return () => window.removeEventListener('resize', handleResize);
     }, [user]);
 
     const validateField = (name, value) => {
@@ -35,16 +39,21 @@ export default function Profile() {
         if (name === 'name') {
             if (!value.trim()) error = 'Full name is required';
             else if (value.trim().length < 3) error = 'Name must be at least 3 characters';
-            else if (!/^[a-zA-Z\s]*$/.test(value)) error = 'Name should only contain letters and spaces';
         }
         if (name === 'phone') {
-            if (value && !/^\d{10}$/.test(value)) error = 'Phone number must be exactly 10 digits';
+            if (value) {
+                if (!/^[6-9]\d{9}$/.test(value)) {
+                    error = 'Invalid 10-digit number (starts with 6-9)';
+                } else if (/(\d)\1{5,}/.test(value)) {
+                    error = 'Invalid: Too many repeating digits';
+                }
+            }
         }
         if (name === 'newPassword') {
-            if (value.length > 0 && value.length < 6) error = 'Password must be at least 6 characters';
+            if (value.length > 0 && value.length < 6) error = 'Min. 6 characters';
         }
         if (name === 'confirmPassword') {
-            if (value !== passwordData.newPassword) error = 'Passwords do not match';
+            if (value !== passwordData.newPassword) error = 'Passwords mismatch';
         }
 
         setFieldErrors(prev => ({ ...prev, [name]: error }));
@@ -64,271 +73,218 @@ export default function Profile() {
     };
 
     const handleSave = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setError('');
         setMessage('');
 
-        // Final validation check
         const isNameValid = validateField('name', formData.name);
         const isPhoneValid = validateField('phone', formData.phone);
-
         let isPassValid = true;
+
         if (isChangingPassword) {
-            const isNewPassValid = validateField('newPassword', passwordData.newPassword);
-            const isConfirmPassValid = validateField('confirmPassword', passwordData.confirmPassword);
-            isPassValid = isNewPassValid && isConfirmPassValid;
+            isPassValid = validateField('newPassword', passwordData.newPassword) &&
+                validateField('confirmPassword', passwordData.confirmPassword);
         }
 
         if (!isNameValid || !isPhoneValid || !isPassValid) {
-            setError('Please correct the errors before saving.');
+            setError('Please correct errors');
             return;
         }
 
         setIsSubmitting(true);
         try {
-            // Update profile info (sanitize before send)
-            const sanitizedData = {
-                name: formData.name.trim(),
-                phone: formData.phone.trim()
-            };
-
-            await updateUser(sanitizedData);
-
-            // Update password if being changed
+            await updateUser({ name: formData.name.trim(), phone: formData.phone.trim() });
             if (isChangingPassword) {
                 const result = await changePassword(passwordData.newPassword);
-                if (!result.success) {
-                    setError(result.error);
-                    setIsSubmitting(false);
-                    return;
-                }
+                if (!result.success) throw new Error(result.error);
                 setIsChangingPassword(false);
                 setPasswordData({ newPassword: '', confirmPassword: '' });
-                setFieldErrors(prev => ({ ...prev, newPassword: '', confirmPassword: '' }));
             }
-
-            setMessage('Profile updated successfully!');
+            setMessage('Profile updated!');
             setTimeout(() => setMessage(''), 3000);
         } catch (err) {
-            setError('Failed to update profile');
+            setError(err.message || 'Update failed');
         } finally {
             setIsSubmitting(false);
         }
     };
 
     return (
-        <div className="fade-in">
-            <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h2 style={{ fontSize: window.innerWidth < 768 ? '1.5rem' : '1.875rem', marginBottom: '0.25rem' }}>Account Profile</h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Manage your identification and security settings</p>
-                </div>
+        <div className="fade-in" style={{ paddingBottom: isMobile ? '5rem' : '2rem' }}>
+            <div style={{ marginBottom: '2.5rem' }}>
+                <h1 style={{ fontSize: isMobile ? '1.75rem' : '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                    Account Profile
+                </h1>
+                <p style={{ color: 'var(--text-muted)', fontSize: isMobile ? '0.9rem' : '1.1rem' }}>
+                    Manage your personal security and visual identity
+                </p>
             </div>
 
-            <form onSubmit={handleSave}>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: window.innerWidth < 1024 ? '1fr' : 'minmax(350px, 1fr) 1.2fr',
-                    gap: '1.5rem',
-                    alignItems: 'start'
-                }}>
-
-                    {/* Left Column: Personal Info */}
-                    <div className="card">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                            <div style={{
-                                width: '80px',
-                                height: '80px',
-                                borderRadius: '50%',
-                                background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                                color: 'white',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '2.5rem',
-                                fontWeight: 800
-                            }}>
-                                {formData.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0 }}>{formData.name}</h3>
-                                <p style={{ color: 'var(--text-muted)', margin: 0 }}>{user?.role === 'admin' ? 'Administrator' : 'System User'}</p>
-                            </div>
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(12, 1fr)',
+                gap: isMobile ? '1.5rem' : '2.5rem',
+                alignItems: 'start'
+            }}>
+                {/* Visual Identity Column */}
+                <div style={{ gridColumn: isMobile ? 'span 1' : 'span 5', display: 'grid', gap: '2rem' }}>
+                    <div className="card" style={{ textAlign: 'center', padding: '3.5rem 2rem', position: 'relative', overflow: 'hidden' }}>
+                        <div style={{
+                            width: '120px',
+                            height: '120px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '3.5rem',
+                            fontWeight: 950,
+                            margin: '0 auto 2rem',
+                            boxShadow: '0 20px 40px rgba(var(--primary-rgb), 0.3)',
+                            border: '4px solid rgba(var(--bg-card-rgb), 0.5)'
+                        }}>
+                            {formData.name.charAt(0) || user?.email?.charAt(0)}
                         </div>
-
-                        <div style={{ display: 'grid', gap: '1.25rem' }}>
-                            <div>
-                                <label className="label" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.9rem', color: fieldErrors.name ? 'var(--danger)' : 'var(--text-muted)' }}>
-                                    <User size={16} /> Full Name {fieldErrors.name && <span style={{ fontSize: '0.75rem', marginLeft: 'auto' }}>({fieldErrors.name})</span>}
-                                </label>
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    style={{ borderColor: fieldErrors.name ? 'var(--danger)' : '' }}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="label" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                    <Mail size={16} /> Email Address
-                                </label>
-                                <input type="email" className="input-field" name="email" value={formData.email} onChange={handleChange} disabled style={{ opacity: 0.7, background: 'var(--bg-body)' }} />
-                            </div>
-
-                            <div>
-                                <label className="label" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.9rem', color: fieldErrors.phone ? 'var(--danger)' : 'var(--text-muted)' }}>
-                                    <Phone size={16} /> Phone Number {fieldErrors.phone && <span style={{ fontSize: '0.75rem', marginLeft: 'auto' }}>({fieldErrors.phone})</span>}
-                                </label>
-                                <input
-                                    type="tel"
-                                    className="input-field"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    placeholder="Update contact number"
-                                    style={{ borderColor: fieldErrors.phone ? 'var(--danger)' : '' }}
-                                />
-                            </div>
+                        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem' }}>{formData.name}</h2>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.4rem 1rem',
+                            borderRadius: '2rem',
+                            background: 'rgba(var(--primary-rgb), 0.1)',
+                            color: 'var(--primary)',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase'
+                        }}>
+                            <ShieldCheck size={16} />
+                            {user?.role || 'User'} Access
                         </div>
                     </div>
 
-                    {/* Right Column: Security & Actions */}
-                    <div style={{ display: 'grid', gap: '1.5rem' }}>
-                        <div className="card">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Security Settings</h3>
-                                {!isChangingPassword && (
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline"
-                                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-                                        onClick={() => setIsChangingPassword(true)}
-                                    >
-                                        <Lock size={16} /> Update Password
-                                    </button>
-                                )}
+                    <div className="card" style={{ padding: '2rem' }}>
+                        <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.1rem' }}>Security Overview</h3>
+                        <div style={{ background: 'rgba(var(--bg-card-rgb), 0.3)', padding: '1.25rem', borderRadius: '1.25rem', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
+                            <Lock size={32} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+                                Multi-layer encryption is protecting your session and data integrity.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Configuration Workstation */}
+                <div style={{ gridColumn: isMobile ? 'span 1' : 'span 7', display: 'grid', gap: '2rem' }}>
+                    <div className="card" style={{ padding: isMobile ? '1.5rem' : '2.5rem' }}>
+                        <h3 style={{ margin: '0 0 2rem', fontSize: '1.3rem' }}>Information Central</h3>
+
+                        <form onSubmit={handleSave} style={{ display: 'grid', gap: '1.5rem' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.6rem', fontWeight: 800 }}>LEGAL FULL NAME</label>
+                                <div style={{ position: 'relative' }}>
+                                    <User size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                    <input
+                                        type="text"
+                                        className="input-field"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        style={{ padding: '1rem 1rem 1rem 3.5rem', borderRadius: '1.25rem', fontSize: '1rem', border: fieldErrors.name ? '2px solid var(--danger)' : '' }}
+                                    />
+                                </div>
+                                {fieldErrors.name && <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 600 }}>{fieldErrors.name}</div>}
                             </div>
 
-                            {isChangingPassword ? (
-                                <div className="fade-in" style={{ display: 'grid', gap: '1.25rem', background: 'var(--bg-body)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border-color)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontWeight: 700 }}>New Password</span>
-                                        <button
-                                            type="button"
-                                            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.85rem' }}
-                                            onClick={() => setIsChangingPassword(false)}
-                                        >
-                                            Cancel Update
-                                        </button>
-                                    </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.6rem', fontWeight: 800 }}>COMMUNICATION ENDPOINT</label>
+                                <div style={{ position: 'relative' }}>
+                                    <Mail size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                    <input type="email" className="input-field" value={formData.email} disabled style={{ padding: '1rem 1rem 1rem 3.5rem', borderRadius: '1.25rem', opacity: 0.5, background: 'var(--bg-body)' }} />
+                                </div>
+                            </div>
 
-                                    <div style={{ position: 'relative' }}>
-                                        <input
-                                            type={showPasswords ? "text" : "password"}
-                                            className="input-field"
-                                            name="newPassword"
-                                            value={passwordData.newPassword}
-                                            onChange={handlePasswordDataChange}
-                                            placeholder="Min. 6 characters"
-                                            style={{ borderColor: fieldErrors.newPassword ? 'var(--danger)' : '' }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPasswords(!showPasswords)}
-                                            style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                                        >
-                                            {showPasswords ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
-                                        {fieldErrors.newPassword && <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.newPassword}</div>}
-                                    </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.6rem', fontWeight: 800 }}>FIRMWARE PHONE LINK</label>
+                                <div style={{ position: 'relative' }}>
+                                    <Phone size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                    <input
+                                        type="tel"
+                                        className="input-field"
+                                        name="phone"
+                                        value={formData.phone}
+                                        onChange={handleChange}
+                                        maxLength="10"
+                                        onKeyPress={(e) => {
+                                            if (!/[0-9]/.test(e.key)) e.preventDefault();
+                                        }}
+                                        placeholder="10 digit number"
+                                        style={{ padding: '1rem 1rem 1rem 3.5rem', borderRadius: '1.25rem', fontSize: '1rem', border: fieldErrors.phone ? '2px solid var(--danger)' : '' }}
+                                    />
+                                </div>
+                                {fieldErrors.phone && <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.5rem', fontWeight: 600 }}>{fieldErrors.phone}</div>}
+                            </div>
 
-                                    <div>
-                                        <label className="label" style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', color: fieldErrors.confirmPassword ? 'var(--danger)' : 'var(--text-muted)' }}>Confirm New Password</label>
+                            <div style={{ marginTop: '1rem' }}>
+                                <h4 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Password Management</h4>
+                                {isChangingPassword ? (
+                                    <div className="fade-in" style={{ display: 'grid', gap: '1rem' }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                type={showPasswords ? "text" : "password"}
+                                                className="input-field"
+                                                name="newPassword"
+                                                placeholder="Modern Password"
+                                                value={passwordData.newPassword}
+                                                onChange={handlePasswordDataChange}
+                                                style={{ padding: '0.8rem 1.25rem', borderRadius: '1rem' }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPasswords(!showPasswords)}
+                                                style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                            >
+                                                {showPasswords ? <EyeOff size={20} /> : <Eye size={20} />}
+                                            </button>
+                                        </div>
                                         <input
                                             type={showPasswords ? "text" : "password"}
                                             className="input-field"
                                             name="confirmPassword"
+                                            placeholder="Validate Password"
                                             value={passwordData.confirmPassword}
                                             onChange={handlePasswordDataChange}
-                                            placeholder="Repeat password"
-                                            style={{ borderColor: fieldErrors.confirmPassword ? 'var(--danger)' : '' }}
+                                            style={{ padding: '0.8rem 1.25rem', borderRadius: '1rem' }}
                                         />
-                                        {fieldErrors.confirmPassword && <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.confirmPassword}</div>}
+                                        <div style={{ display: 'flex', gap: '1rem' }}>
+                                            <button type="button" className="btn btn-outline" style={{ flex: 1, borderRadius: '1rem' }} onClick={() => setIsChangingPassword(false)}>Discard</button>
+                                        </div>
                                     </div>
-
-                                    <button
-                                        type="submit"
-                                        className="btn btn-primary"
-                                        style={{ width: '100%', marginTop: '0.5rem', background: 'var(--primary)', height: '48px', fontSize: '1rem' }}
-                                    >
-                                        Confirm Password Update
+                                ) : (
+                                    <button type="button" className="btn btn-outline" style={{ width: '100%', borderRadius: '1.25rem', padding: '1rem' }} onClick={() => setIsChangingPassword(true)}>
+                                        Initiate Password Rotation
                                     </button>
-                                </div>
-                            ) : (
-                                <div style={{ padding: '1.5rem', textAlign: 'center', background: 'var(--bg-body)', borderRadius: '1rem', border: '1px dashed var(--border-color)' }}>
-                                    <Lock size={32} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '300px', margin: '0 auto' }}> Password was last updated 3 months ago. We recommend regular updates.</p>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
 
-                        {/* Status Messages & Save */}
-                        <div className="card" style={{ background: (message || error) ? 'transparent' : 'var(--bg-card)', border: (message || error) ? 'none' : '1px solid var(--border-color)', boxShadow: (message || error) ? 'none' : 'var(--shadow-md)', padding: (message || error) ? 0 : '1.5rem' }}>
-                            {message && (
-                                <div className="fade-in" style={{
-                                    background: 'rgba(34, 197, 94, 0.1)',
-                                    color: 'var(--success)',
-                                    padding: '1rem',
-                                    borderRadius: '1rem',
-                                    marginBottom: '1rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    border: '1px solid var(--success)'
-                                }}>
-                                    <Save size={20} /> <span style={{ fontWeight: 600 }}>{message}</span>
-                                </div>
-                            )}
+                            <div style={{ marginTop: '2rem' }}>
+                                {message && <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', borderRadius: '1rem', marginBottom: '1rem', textAlign: 'center', fontWeight: 700 }}>{message}</div>}
+                                {error && <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderRadius: '1rem', marginBottom: '1rem', textAlign: 'center', fontWeight: 700 }}>{error}</div>}
 
-                            {error && (
-                                <div className="fade-in" style={{
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    color: 'var(--danger)',
-                                    padding: '1rem',
-                                    borderRadius: '1rem',
-                                    marginBottom: '1rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    border: '1px solid var(--danger)'
-                                }}>
-                                    <AlertCircle size={20} /> <span style={{ fontWeight: 600 }}>{error}</span>
-                                </div>
-                            )}
-
-                            <button
-                                type="submit"
-                                className="btn btn-primary"
-                                disabled={isSubmitting || Object.values(fieldErrors).some(err => err)}
-                                style={{
-                                    width: '100%',
-                                    height: '56px',
-                                    fontSize: '1.1rem',
-                                    gap: '0.75rem',
-                                    opacity: (isSubmitting || Object.values(fieldErrors).some(err => err)) ? 0.7 : 1,
-                                    cursor: (isSubmitting || Object.values(fieldErrors).some(err => err)) ? 'not-allowed' : 'pointer'
-                                }}
-                            >
-                                <Save size={22} className={isSubmitting ? 'spin' : ''} />
-                                {isSubmitting ? 'Updating Profile...' : 'Save Profile Changes'}
-                            </button>
-                        </div>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary"
+                                    disabled={isSubmitting}
+                                    style={{ width: '100%', padding: '1.25rem', borderRadius: '1.5rem', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 25px var(--primary-glow)' }}
+                                >
+                                    {isSubmitting ? 'Synchronizing Profile...' : 'Finalize & Save Changes'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     );
 }

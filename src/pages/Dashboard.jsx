@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import WaterTank from '../components/WaterTank';
-import { Power, AlertCircle, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
+import PremiumWaterTank from '../components/PremiumWaterTank';
+import { Power, AlertCircle, CheckCircle2, RefreshCw, Loader2, Lock, Unlock } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useAutomation } from '../context/AutomationContext';
 import mqtt from 'mqtt';
@@ -19,7 +19,7 @@ export default function Dashboard() {
         }
     }, [user, navigate]);
 
-    const { settings, loading: settingsLoading } = useAutomation();
+    const { settings, updateSettings, loading: settingsLoading } = useAutomation();
 
     if (user?.role?.toLowerCase() === 'admin') return null;
 
@@ -35,10 +35,11 @@ export default function Dashboard() {
     const [mqttClient, setMqttClient] = useState(null);
 
     useEffect(() => {
-        // Fallback to HiveMQ Public Broker since CloudAMQP WebSockets are not enabled.
-        const url = `ws://broker.hivemq.com:8000/mqtt`;
+        // Use Global Config for HiveMQ connection
+        const protocol = 'wss';
+        const url = `${protocol}://${MQTT_CONFIG.hostname}:${MQTT_CONFIG.port}${MQTT_CONFIG.path}`;
 
-        console.log(`Connecting to MQTT at ${url}`);
+        console.log(`Dashboard connecting to MQTT at ${url}`);
 
         const client = mqtt.connect(url, {
             clientId: `dashboard_client_${Math.random().toString(16).slice(2, 8)}`,
@@ -130,14 +131,31 @@ export default function Dashboard() {
     }, [waterLevel, settings, isMotorOn, mqttClient]);
 
     const toggleMotor = () => {
+        if (settings?.mode === 'auto') {
+            createNotification('Control Locked', 'Switch to Manual Mode to operate the motor directly.', 'warning');
+            return;
+        }
+
         if (mqttClient && mqttClient.connected) {
             const nextState = isMotorOn ? 'OFF' : 'ON';
             mqttClient.publish('aquamonitor/motor/command', nextState);
-            // We don't set state here; we wait for the tank to report back via telemetry
         }
     };
 
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleUpdate = () => {
         setIsUpdating(true);
@@ -160,220 +178,200 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="fade-in">
-            <div>
-                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        <h2 style={{ fontSize: '1.875rem', marginBottom: '0.25rem' }}>Dashboard</h2>
-                        <p style={{ color: 'var(--text-muted)' }}>Overview of your water management system</p>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <button
-                            onClick={handleUpdate}
-                            className="btn btn-outline"
-                            disabled={isUpdating}
-                            style={{
-                                borderRadius: '2rem',
-                                padding: '0.5rem 1.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                transition: 'all 0.3s ease'
-                            }}
-                        >
-                            <RefreshCw size={18} className={isUpdating ? 'spin' : ''} />
-                            {isUpdating ? 'Updating...' : 'Update Data'}
-                        </button>
+        <div className="fade-in" style={{ paddingBottom: isMobile ? '5rem' : '2rem' }}>
+            {/* Page Header */}
+            <div style={{
+                marginBottom: '2rem',
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                justifyContent: 'space-between',
+                alignItems: isMobile ? 'flex-start' : 'center',
+                gap: isMobile ? '1rem' : '0'
+            }}>
+                <div>
+                    <h1 style={{ fontSize: isMobile ? '1.75rem' : '2.5rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>
+                        {isMobile ? 'Dashboard' : 'System Overview'}
+                    </h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: isMobile ? '0.9rem' : '1.1rem' }}>
+                        Live telemetry from AquaMonitor Node-01
+                    </p>
+                </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card)', padding: '0.5rem 1rem', borderRadius: '2rem', border: '1px solid var(--border-color)' }}>
-                            <span style={{
-                                display: 'inline-block',
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '50%',
-                                backgroundColor: systemStatus === 'Online' ? 'var(--success)' : 'var(--danger)',
-                                boxShadow: `0 0 10px ${systemStatus === 'Online' ? 'var(--success)' : 'var(--danger)'}`
-                            }}></span>
-                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>System {systemStatus}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: isMobile ? '100%' : 'auto' }}>
+                    {!isMobile && (
+                        <div style={{ textAlign: 'right', paddingRight: '1.5rem', borderRight: '1px solid var(--border-color)' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>CURRENT STATE</div>
+                            <div style={{ fontWeight: 700, color: isMotorOn ? 'var(--success)' : 'var(--text-main)' }}>{isMotorOn ? 'Active Pumping' : 'Standby Mode'}</div>
+                        </div>
+                    )}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                        background: 'rgba(var(--bg-card-rgb), 0.5)', padding: '0.6rem 1.25rem',
+                        borderRadius: '2rem', border: '1px solid var(--border-color)',
+                        flex: isMobile ? 1 : 'none', justifyContent: 'center',
+                        backdropFilter: 'blur(10px)', background: 'rgba(var(--bg-card-rgb), 0.2)'
+                    }}>
+                        <span style={{
+                            width: '10px', height: '10px', borderRadius: '50%',
+                            backgroundColor: systemStatus === 'Online' ? 'var(--success)' : 'var(--danger)',
+                            boxShadow: `0 0 12px ${systemStatus === 'Online' ? 'var(--success)' : 'var(--danger)'}`
+                        }}></span>
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{systemStatus} Hub</span>
+                    </div>
+                    {isMobile && (
+                        <button onClick={handleUpdate} className="btn btn-outline" style={{ borderRadius: '2rem', padding: '0.6rem' }}>
+                            <RefreshCw size={18} className={isUpdating ? 'spin' : ''} />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+
+
+            {/* Main Content Grid */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr 1fr',
+                gap: isMobile ? '1.25rem' : '2rem',
+                alignItems: 'start'
+            }}>
+                {/* Visualizer Column */}
+                <div style={{ position: 'relative' }}>
+                    <div className="card" style={{ padding: isMobile ? '1rem' : '2.5rem', minHeight: isMobile ? 'auto' : '500px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Storage Reservoir</h3>
+                            <button onClick={handleUpdate} className="btn btn-outline hide-mobile" style={{ borderRadius: '1rem', padding: '0.5rem 1rem' }}>
+                                <RefreshCw size={14} className={isUpdating ? 'spin' : ''} />
+                                <span style={{ fontSize: '0.8rem' }}>Sync Level</span>
+                            </button>
+                        </div>
+                        <div style={{ transform: isMobile ? 'scale(0.9)' : 'scale(1.1)', transformOrigin: 'center' }}>
+                            <PremiumWaterTank level={waterLevel} />
                         </div>
                     </div>
                 </div>
 
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(320px, 1.2fr) 1fr 1fr',
-                    gap: '1.5rem',
-                    alignItems: 'start'
-                }}>
-                    {/* Column 1: Water Tank Visual */}
-                    <div style={{ height: '100%', position: 'relative' }}>
-                        {!hasReceivedData && systemStatus === 'Online' && (
+                {/* Automation Column */}
+                <div style={{ display: 'grid', gap: isMobile ? '1.25rem' : '2rem' }}>
+                    <div className="card" style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Motor Hub</h3>
                             <div style={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                zIndex: 20,
-                                background: 'rgba(0,0,0,0.7)',
-                                color: 'white',
-                                padding: '1rem',
-                                borderRadius: '1rem',
-                                textAlign: 'center',
-                                width: '80%'
+                                padding: '0.25rem 0.75rem', borderRadius: '1rem',
+                                background: isMotorOn ? 'rgba(16, 185, 129, 0.1)' : 'rgba(var(--text-muted-rgb), 0.1)',
+                                color: isMotorOn ? 'var(--success)' : 'var(--text-muted)',
+                                fontSize: '0.75rem', fontWeight: 800
                             }}>
-                                <Loader2 size={24} className="spin" style={{ marginBottom: '0.5rem' }} />
-                                <div style={{ fontSize: '0.9rem' }}>Waiting for ESP32 data...</div>
+                                {isMotorOn ? 'ACTIVE' : 'IDLE'}
                             </div>
-                        )}
-                        <WaterTank level={waterLevel} />
-                    </div>
+                        </div>
 
-                    {/* Column 2: Motor Control */}
-                    <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Motor Control</h3>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flex: 1 }}>
-                            <div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem', color: isMotorOn ? 'var(--success)' : 'var(--text-main)' }}>
-                                    {isMotorOn ? 'Running' : 'Stopped'}
-                                </div>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                    {isMotorOn ? 'Pump is actively filling' : 'Pump is currently idle'}
-                                </div>
-                            </div>
-
+                        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                             <button
                                 onClick={toggleMotor}
-                                className={`btn ${isMotorOn ? 'btn-primary' : 'btn-outline'}`}
                                 style={{
-                                    width: '72px',
-                                    height: '72px',
+                                    width: isMobile ? '80px' : '120px',
+                                    height: isMobile ? '80px' : '120px',
                                     borderRadius: '50%',
-                                    padding: 0,
-                                    border: isMotorOn ? 'none' : '3px solid var(--border-color)',
-                                    backgroundColor: isMotorOn ? 'var(--success)' : 'transparent',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    boxShadow: isMotorOn ? '0 0 20px rgba(16, 185, 129, 0.4)' : 'none'
+                                    border: 'none',
+                                    background: settings?.mode === 'auto' ? 'var(--bg-body)' : (isMotorOn ? 'linear-gradient(135deg, var(--success), #059669)' : 'var(--bg-body)'),
+                                    boxShadow: settings?.mode === 'auto' ? 'none' : (isMotorOn ? '0 15px 35px rgba(16, 185, 129, 0.4)' : 'inset 0 2px 10px rgba(0,0,0,0.1)'),
+                                    cursor: settings?.mode === 'auto' ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto',
+                                    opacity: settings?.mode === 'auto' ? 0.6 : 1,
+                                    position: 'relative'
                                 }}
                             >
-                                <Power size={36} color={isMotorOn ? 'white' : 'var(--text-muted)'} />
+                                {settings?.mode === 'auto' ? (
+                                    <Lock size={isMobile ? 32 : 48} color="var(--text-muted)" />
+                                ) : (
+                                    <Power size={isMobile ? 32 : 48} color={isMotorOn ? 'white' : 'var(--text-muted)'} />
+                                )}
+                                {settings?.mode === 'auto' && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '-10px',
+                                        background: 'var(--danger)',
+                                        color: 'white',
+                                        padding: '2px 8px',
+                                        borderRadius: '10px',
+                                        fontSize: '0.6rem',
+                                        fontWeight: 800
+                                    }}>LOCKED</div>
+                                )}
                             </button>
+                            <div style={{ marginTop: '1.5rem', fontWeight: 800, fontSize: '1.1rem' }}>
+                                {isMotorOn ? 'Shut Down Pump' : 'Initiate Pumping'}
+                            </div>
                         </div>
 
-                        <div style={{ padding: '1.25rem', background: 'var(--bg-body)', borderRadius: '0.75rem', fontSize: '0.9rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                                <span style={{ color: 'var(--text-muted)' }}>Operation Mode</span>
-                                <span style={{ fontWeight: 700, color: 'var(--primary)', textTransform: 'capitalize' }}>
-                                    {settings?.mode || 'Automatic'}
-                                </span>
+                        <div style={{ padding: '1.25rem', background: 'var(--bg-body)', borderRadius: '1.25rem', display: 'grid', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Auto-Mode</span>
+                                <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{settings?.mode?.toUpperCase()}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: 'var(--text-muted)' }}>Scheduled Time</span>
-                                <span style={{ fontWeight: 700 }}>
-                                    {settings?.scheduleEnabled ? `${settings.startTime} - ${settings.endTime}` : 'Disabled'}
-                                </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Active Schedule</span>
+                                <span style={{ fontWeight: 700 }}>{settings?.scheduleEnabled ? `${settings.startTime} - ${settings.endTime}` : 'Manual'}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Column 3: Alerts & Status */}
-                    <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Live Notifications</h3>
+                    <div className="card" style={{ padding: '1.5rem' }}>
+                        <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.1rem' }}>System Health</h3>
+                        {waterLevel < settings?.minLevel ? (
+                            <div style={{ display: 'flex', gap: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '1rem', color: 'var(--danger)' }}>
+                                <AlertCircle size={20} />
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Critical Low Level</span>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', gap: '1rem', padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '1rem', color: 'var(--success)' }}>
+                                <CheckCircle2 size={20} />
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>All Systems Nominal</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-                        {/* Live Notifications from Context */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-                            {notifications.slice(0, 3).map(notif => (
-                                <div key={notif.id} style={{
-                                    padding: '0.75rem',
-                                    background: 'var(--bg-body)',
-                                    borderLeft: `4px solid ${notif.type === 'error' ? 'var(--danger)' :
-                                        notif.type === 'warning' ? 'var(--warning)' :
-                                            notif.type === 'success' ? 'var(--success)' : 'var(--primary)'
-                                        }`,
-                                    borderRadius: '0.5rem',
-                                    boxShadow: 'var(--shadow-sm)'
-                                }}>
-                                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.2rem' }}>{notif.title}</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{notif.message}</div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.4rem', textAlign: 'right' }}>
-                                        {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                {/* Environment Column */}
+                <div className="card" style={{ padding: isMobile ? '1.5rem' : '2rem' }}>
+                    <h3 style={{ margin: '0 0 2rem', fontSize: '1.2rem' }}>Sensor Telemetry</h3>
 
-                        {waterLevel < (settings?.minLevel || 20) && (
+                    <div style={{ display: 'grid', gap: '1.5rem' }}>
+                        {settings?.mode === 'auto' && (
+                            <div className="fade-in" style={{ padding: '1.25rem', background: 'rgba(var(--primary-rgb), 0.1)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '1.5rem', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>NEXT SCHEDULE EXECUTION</div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--text-main)' }}>{settings?.startTime || '00:00'}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Automatic cycle initiation</div>
+                            </div>
+                        )}
+
+                        <div style={{ padding: '2rem 1.5rem', background: 'rgba(var(--primary-rgb), 0.05)', borderRadius: '1.5rem', textAlign: 'center', border: '1px solid rgba(var(--primary-rgb), 0.1)', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '1rem', letterSpacing: '0.1em' }}>SYSTEM REAL-TIME HUB</div>
+                            <div style={{ fontSize: '3.5rem', fontWeight: 950, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </div>
+                            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginTop: '0.5rem', opacity: 0.8 }}>
+                                {currentTime.toLocaleTimeString([], { second: '2-digit' })}s
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '1rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                                {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                            </div>
+
+                            {/* Subtle pulse element */}
                             <div style={{
-                                display: 'flex',
-                                gap: '1rem',
-                                padding: '1rem',
-                                background: 'rgba(239, 68, 68, 0.08)',
-                                borderLeft: '4px solid var(--danger)',
-                                borderRadius: '0.5rem',
-                                color: 'var(--danger)',
+                                position: 'absolute', top: '10px', right: '10px', width: '6px', height: '6px',
+                                borderRadius: '50%', background: 'var(--primary)',
                                 animation: 'pulse 2s infinite'
-                            }}>
-                                <AlertCircle size={24} style={{ flexShrink: 0 }} />
-                                <div>
-                                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Low water level!</div>
-                                    <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                                        {settings?.mode === 'auto' ? `Auto-fill starting at ${settings.minLevel}%` : 'Manual start recommended.'}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {waterLevel > (settings?.maxLevel - 10 || 80) && waterLevel < (settings?.maxLevel || 90) && (
-                            <div style={{
-                                display: 'flex',
-                                gap: '1rem',
-                                padding: '1rem',
-                                background: 'rgba(245, 158, 11, 0.08)',
-                                borderLeft: '4px solid var(--warning)',
-                                borderRadius: '0.5rem',
-                                color: 'var(--warning)'
-                            }}>
-                                <AlertCircle size={24} style={{ flexShrink: 0 }} />
-                                <div>
-                                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Tank almost full</div>
-                                    <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Auto-stop will trigger at {settings?.maxLevel || 90}%.</div>
-                                </div>
-                            </div>
-                        )}
-
-                        {waterLevel >= (settings?.minLevel || 20) && waterLevel <= (settings?.maxLevel - 10 || 80) && (
-                            <div style={{
-                                display: 'flex',
-                                gap: '1rem',
-                                padding: '1rem',
-                                background: 'rgba(16, 185, 129, 0.08)',
-                                borderLeft: '4px solid var(--success)',
-                                borderRadius: '0.5rem',
-                                color: 'var(--success)'
-                            }}>
-                                <CheckCircle2 size={24} style={{ flexShrink: 0 }} />
-                                <div>
-                                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>System Normal</div>
-                                    <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Water level is within safe limits.</div>
-                                </div>
-                            </div>
-                        )}
-
-                        <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div style={{ background: 'var(--bg-body)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Temp</div>
-                                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{sensors.temp}°C</div>
-                                </div>
-                                <div style={{ background: 'var(--bg-body)', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Turbidity</div>
-                                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{sensors.turbidity} NTU</div>
-                                </div>
-                            </div>
+                            }}></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
     );
 }

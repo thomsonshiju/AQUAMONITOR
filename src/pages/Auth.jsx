@@ -14,6 +14,7 @@ export default function Auth({ mode = 'login' }) {
         name: '',
         confirmPassword: ''
     });
+    const [fieldErrors, setFieldErrors] = useState({});
     const [isAdminFill, setIsAdminFill] = useState(false);
 
     const { login, signup, resetPassword, user } = useAuth();
@@ -25,6 +26,33 @@ export default function Auth({ mode = 'login' }) {
         setIsLogin(location.pathname === '/login');
         setError('');
     }, [location.pathname]);
+
+    const validateField = (name, value, currentPassword) => {
+        let err = '';
+        if (name === 'email') {
+            if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                err = 'Invalid email address';
+            }
+        }
+        if (name === 'password') {
+            if (value && value.length < 6) {
+                err = 'Min. 6 characters required';
+            }
+        }
+        if (name === 'name') {
+            if (value && value.trim().length < 3) {
+                err = 'Name must be at least 3 characters';
+            }
+        }
+        if (name === 'confirmPassword') {
+            if (value && value !== currentPassword) {
+                err = 'Passwords do not match';
+            }
+        }
+
+        setFieldErrors(prev => ({ ...prev, [name]: err }));
+        return !err;
+    };
 
     // Handle redirection once user is authenticated
     useEffect(() => {
@@ -112,6 +140,7 @@ export default function Auth({ mode = 'login' }) {
     const toggleMode = (e, targetLogin) => {
         e.preventDefault();
         setIsLogin(targetLogin);
+        setFieldErrors({});
         navigate(targetLogin ? '/login' : '/signup', { replace: true });
     };
 
@@ -121,10 +150,35 @@ export default function Auth({ mode = 'login' }) {
         if (checked) {
             setEmail('manager@aquamonitor.com');
             setPassword('manager123');
+            setFieldErrors({});
         } else {
             setEmail('');
             setPassword('');
         }
+    };
+
+    const handleEmailChange = (val) => {
+        setEmail(val);
+        validateField('email', val);
+    };
+
+    const handlePasswordChange = (val) => {
+        setPassword(val);
+        validateField('password', val);
+        // Re-validate confirm if in signup
+        if (!isLogin && formData.confirmPassword) {
+            validateField('confirmPassword', formData.confirmPassword, val);
+        }
+    };
+
+    const handleNameChange = (val) => {
+        setFormData(prev => ({ ...prev, name: val }));
+        validateField('name', val);
+    };
+
+    const handleConfirmPasswordChange = (val) => {
+        setFormData(prev => ({ ...prev, confirmPassword: val }));
+        validateField('confirmPassword', val, password);
     };
 
     return (
@@ -165,9 +219,11 @@ export default function Auth({ mode = 'login' }) {
                                         className="auth-input"
                                         placeholder="Enter your email"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) => handleEmailChange(e.target.value)}
                                         required
+                                        style={{ borderColor: isLogin && fieldErrors.email ? 'var(--danger)' : '' }}
                                     />
+                                    {isLogin && fieldErrors.email && <div style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.email}</div>}
                                 </div>
 
                                 <div className="auth-input-group">
@@ -177,9 +233,11 @@ export default function Auth({ mode = 'login' }) {
                                         className="auth-input"
                                         placeholder="Enter your password"
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e) => handlePasswordChange(e.target.value)}
                                         required
+                                        style={{ borderColor: isLogin && fieldErrors.password ? 'var(--danger)' : '' }}
                                     />
+                                    {isLogin && fieldErrors.password && <div style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.password}</div>}
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -239,9 +297,11 @@ export default function Auth({ mode = 'login' }) {
                                         className="auth-input"
                                         placeholder="John Doe"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        onChange={(e) => handleNameChange(e.target.value)}
                                         required
+                                        style={{ borderColor: !isLogin && fieldErrors.name ? 'var(--danger)' : '' }}
                                     />
+                                    {!isLogin && fieldErrors.name && <div style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.name}</div>}
                                 </div>
 
                                 <div className="auth-input-group">
@@ -251,9 +311,11 @@ export default function Auth({ mode = 'login' }) {
                                         className="auth-input"
                                         placeholder="name@example.com"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) => handleEmailChange(e.target.value)}
                                         required
+                                        style={{ borderColor: !isLogin && fieldErrors.email ? 'var(--danger)' : '' }}
                                     />
+                                    {!isLogin && fieldErrors.email && <div style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.email}</div>}
                                 </div>
 
                                 <div className="auth-input-group">
@@ -263,9 +325,11 @@ export default function Auth({ mode = 'login' }) {
                                         className="auth-input"
                                         placeholder="••••••••"
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
+                                        onChange={(e) => handlePasswordChange(e.target.value)}
                                         required
+                                        style={{ borderColor: !isLogin && fieldErrors.password ? 'var(--danger)' : '' }}
                                     />
+                                    {!isLogin && fieldErrors.password && <div style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.password}</div>}
                                 </div>
 
                                 <div className="auth-input-group">
@@ -275,9 +339,11 @@ export default function Auth({ mode = 'login' }) {
                                         className="auth-input"
                                         placeholder="••••••••"
                                         value={formData.confirmPassword}
-                                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                        onChange={(e) => handleConfirmPasswordChange(e.target.value)}
                                         required
+                                        style={{ borderColor: !isLogin && fieldErrors.confirmPassword ? 'var(--danger)' : '' }}
                                     />
+                                    {!isLogin && fieldErrors.confirmPassword && <div style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.confirmPassword}</div>}
                                 </div>
 
                                 <button type="submit" disabled={loading} className="auth-btn-primary">
