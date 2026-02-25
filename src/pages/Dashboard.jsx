@@ -23,6 +23,7 @@ export default function Dashboard() {
 
     if (user?.role?.toLowerCase() === 'admin') return null;
 
+    const [rawDistance, setRawDistance] = useState(0);
     const [waterLevel, setWaterLevel] = useState(0);
     const [hasReceivedData, setHasReceivedData] = useState(false);
     const [isMotorOn, setIsMotorOn] = useState(false);
@@ -35,9 +36,10 @@ export default function Dashboard() {
     const [mqttClient, setMqttClient] = useState(null);
 
     useEffect(() => {
-        // Use Global Config for HiveMQ connection
+        // Force Secure WebSockets (WSS) and Port 8884 for HiveMQ
         const protocol = 'wss';
-        const url = `${protocol}://${MQTT_CONFIG.hostname}:${MQTT_CONFIG.port}${MQTT_CONFIG.path}`;
+        const port = 8884;
+        const url = `${protocol}://${MQTT_CONFIG.hostname}:${port}${MQTT_CONFIG.path}`;
 
         console.log(`Dashboard connecting to MQTT at ${url}`);
 
@@ -45,7 +47,8 @@ export default function Dashboard() {
             clientId: `dashboard_client_${Math.random().toString(16).slice(2, 8)}`,
             keepalive: 60,
             reconnectPeriod: 2000,
-            // username/password removed for public broker
+            username: MQTT_CONFIG.username,
+            password: MQTT_CONFIG.password,
             clean: true,
         });
 
@@ -76,7 +79,7 @@ export default function Dashboard() {
             if (topic === 'thomson_h2o/data') {
                 try {
                     const data = JSON.parse(message.toString());
-                    setWaterLevel(data.level);
+                    setRawDistance(data.distance_cm || 0);
                     setHasReceivedData(true);
                     setIsMotorOn(data.motor === "ON");
                     setSensors({
@@ -94,6 +97,23 @@ export default function Dashboard() {
 
         return () => client.end();
     }, []);
+
+    // Calculate purely frontend-driven Water Percentage
+    useEffect(() => {
+        if (!hasReceivedData) return;
+        const h = settings?.tankHeight || 100;
+        const deadZone = 20;
+        const effectiveSpace = Math.max(1, h - deadZone);
+
+        let safeDist = rawDistance;
+        if (safeDist < deadZone) safeDist = deadZone;
+        if (safeDist > h) safeDist = h;
+
+        const wLevelCm = h - safeDist;
+        const percentage = (wLevelCm / effectiveSpace) * 100;
+
+        setWaterLevel(Math.round(percentage));
+    }, [rawDistance, settings?.tankHeight, hasReceivedData]);
 
     // Automation Logic
     useEffect(() => {
@@ -246,7 +266,11 @@ export default function Dashboard() {
                             </button>
                         </div>
                         <div style={{ transform: isMobile ? 'scale(0.9)' : 'scale(1.1)', transformOrigin: 'center' }}>
-                            <PremiumWaterTank level={waterLevel} />
+                            <PremiumWaterTank
+                                level={waterLevel}
+                                tankHeight={settings?.tankHeight || 100}
+                                onHeightChange={(newHeight) => updateSettings({ ...settings, tankHeight: newHeight })}
+                            />
                         </div>
                     </div>
                 </div>
@@ -274,8 +298,8 @@ export default function Dashboard() {
                                     height: isMobile ? '80px' : '120px',
                                     borderRadius: '50%',
                                     border: 'none',
-                                    background: settings?.mode === 'auto' ? 'var(--bg-body)' : (isMotorOn ? 'linear-gradient(135deg, var(--success), #059669)' : 'var(--bg-body)'),
-                                    boxShadow: settings?.mode === 'auto' ? 'none' : (isMotorOn ? '0 15px 35px rgba(16, 185, 129, 0.4)' : 'inset 0 2px 10px rgba(0,0,0,0.1)'),
+                                    background: settings?.mode === 'auto' ? 'var(--bg-body)' : (isMotorOn ? 'linear-gradient(135deg, var(--success), #059669)' : 'linear-gradient(135deg, var(--danger), #dc2626)'),
+                                    boxShadow: settings?.mode === 'auto' ? 'none' : (isMotorOn ? '0 15px 35px rgba(16, 185, 129, 0.4)' : '0 15px 35px rgba(220, 38, 38, 0.4)'),
                                     cursor: settings?.mode === 'auto' ? 'not-allowed' : 'pointer',
                                     transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                                     display: 'flex',
@@ -289,7 +313,7 @@ export default function Dashboard() {
                                 {settings?.mode === 'auto' ? (
                                     <Lock size={isMobile ? 32 : 48} color="var(--text-muted)" />
                                 ) : (
-                                    <Power size={isMobile ? 32 : 48} color={isMotorOn ? 'white' : 'var(--text-muted)'} />
+                                    <Power size={isMobile ? 32 : 48} color="white" />
                                 )}
                                 {settings?.mode === 'auto' && (
                                     <div style={{
@@ -305,7 +329,7 @@ export default function Dashboard() {
                                 )}
                             </button>
                             <div style={{ marginTop: '1.5rem', fontWeight: 800, fontSize: '1.1rem' }}>
-                                {isMotorOn ? 'Shut Down Pump' : 'Initiate Pumping'}
+                                {isMotorOn ? 'Turn OFF' : 'Turn ON'}
                             </div>
                         </div>
 
@@ -313,10 +337,6 @@ export default function Dashboard() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                                 <span style={{ color: 'var(--text-muted)' }}>Auto-Mode</span>
                                 <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{settings?.mode?.toUpperCase()}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                <span style={{ color: 'var(--text-muted)' }}>Active Schedule</span>
-                                <span style={{ fontWeight: 700 }}>{settings?.scheduleEnabled ? `${settings.startTime} - ${settings.endTime}` : 'Manual'}</span>
                             </div>
                         </div>
                     </div>
@@ -342,14 +362,6 @@ export default function Dashboard() {
                     <h3 style={{ margin: '0 0 2rem', fontSize: '1.2rem' }}>Sensor Telemetry</h3>
 
                     <div style={{ display: 'grid', gap: '1.5rem' }}>
-                        {settings?.mode === 'auto' && (
-                            <div className="fade-in" style={{ padding: '1.25rem', background: 'rgba(var(--primary-rgb), 0.1)', border: '1px solid rgba(var(--primary-rgb), 0.2)', borderRadius: '1.5rem', textAlign: 'center' }}>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '0.05em' }}>NEXT SCHEDULE EXECUTION</div>
-                                <div style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--text-main)' }}>{settings?.startTime || '00:00'}</div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Automatic cycle initiation</div>
-                            </div>
-                        )}
-
                         <div style={{ padding: '2rem 1.5rem', background: 'rgba(var(--primary-rgb), 0.05)', borderRadius: '1.5rem', textAlign: 'center', border: '1px solid rgba(var(--primary-rgb), 0.1)', position: 'relative', overflow: 'hidden' }}>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, marginBottom: '1rem', letterSpacing: '0.1em' }}>SYSTEM REAL-TIME HUB</div>
                             <div style={{ fontSize: '3.5rem', fontWeight: 950, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>

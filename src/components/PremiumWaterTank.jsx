@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './PremiumWaterTank.css';
 
-export default function PremiumWaterTank({ level }) {
+export default function PremiumWaterTank({ level, tankHeight = 100, onHeightChange }) {
+    const [localHeight, setLocalHeight] = useState(tankHeight);
+
+    useEffect(() => {
+        setLocalHeight(tankHeight);
+    }, [tankHeight]);
+
+    const handleHeightSubmit = () => {
+        const parsed = parseInt(localHeight, 10);
+        if (!isNaN(parsed) && parsed > 0 && onHeightChange && parsed !== tankHeight) {
+            onHeightChange(parsed);
+        }
+    };
+
     // Level is percentage 0-100
     const displayLevel = Math.round(level);
 
@@ -70,9 +83,27 @@ export default function PremiumWaterTank({ level }) {
             </div>
 
             <div className="tank-stats">
-                <div className="stat-item">
-                    <span className="stat-label">Volume</span>
-                    <span className="stat-value">{displayLevel * 10}L</span>
+                <div className="stat-item" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <span className="stat-label">Tank Height (cm)</span>
+                    <input
+                        type="number"
+                        value={localHeight}
+                        onChange={(e) => setLocalHeight(e.target.value)}
+                        onBlur={handleHeightSubmit}
+                        onKeyDown={(e) => e.key === 'Enter' && handleHeightSubmit()}
+                        style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '0.5rem',
+                            color: 'inherit',
+                            width: '80px',
+                            textAlign: 'center',
+                            fontSize: '1.2rem',
+                            fontWeight: 'bold',
+                            padding: '0.2rem',
+                            outline: 'none'
+                        }}
+                    />
                 </div>
                 <div className="stat-item">
                     <span className="stat-label">Status</span>

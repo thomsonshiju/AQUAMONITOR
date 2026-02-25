@@ -17,7 +17,7 @@ const hourlyData = [
     { time: '08:00', level: 60 },
     { time: '12:00', level: 45 },
     { time: '16:00', level: 40 },
-    { time: '20:00', level: 90 }, // Pump ran
+    { time: '20:00', level: 90 }, // Light motor ran
     { time: '23:59', level: 88 },
 ];
 
@@ -53,23 +53,21 @@ export default function Analytics() {
                     gridColumn: isMobile ? 'span 1' : 'span 12',
                     padding: isMobile ? '1.25rem' : '2.5rem'
                 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '2.5rem', gap: isMobile ? '1.5rem' : '0' }}>
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.4rem' }}>Consumption Velocity</h3>
                             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Daily volume processed in Liters (Last 7 Days)</span>
                         </div>
-                        {!isMobile && (
-                            <div style={{ display: 'flex', gap: '1.5rem' }}>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>PEAK DAY</div>
-                                    <div style={{ fontWeight: 700, color: 'var(--primary)' }}>SATURDAY (800L)</div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>PERIOD AVG</div>
-                                    <div style={{ fontWeight: 700 }}>521L / day</div>
-                                </div>
+                        <div style={{ display: 'flex', gap: '1.5rem', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+                            <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>PEAK DAY</div>
+                                <div style={{ fontWeight: 700, color: 'var(--primary)' }}>SATURDAY (800L)</div>
                             </div>
-                        )}
+                            <div style={{ textAlign: isMobile ? 'left' : 'right', borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>PERIOD AVG</div>
+                                <div style={{ fontWeight: 700 }}>521L / day</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div style={{ height: isMobile ? '280px' : '400px', width: '100%' }}>
@@ -129,7 +127,7 @@ export default function Analytics() {
                 </div>
 
                 {/* 3. Operational KPIs (Stacked Beside Charts on Desktop) */}
-                <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'grid', gap: '1.5rem' }}>
+                <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'grid', gap: '1.5rem', height: '100%' }}>
                     {[
                         { label: 'Overall Efficiency', value: '94.2%', note: 'Resource utilization', color: 'var(--success)' },
                         { label: 'Critical Thresholds', value: '2 Events', note: 'Low level alerts triggered', color: 'var(--warning)' },

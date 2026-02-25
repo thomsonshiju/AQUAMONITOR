@@ -5,27 +5,32 @@
  */
 
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include <PubSubClient.h>
 #include <WiFi.h>
-
+#include <WiFiClientSecure.h>
 // ==========================================
 // 1. CONFIGURATION SECTION
 // ==========================================
 
 // --- WiFi Configuration ---
-const char *WIFI_SSID = "thomson";
-const char *WIFI_PASSWORD = "Thomson@12345";
+const char *WIFI_SSID = "nthing";
+const char *WIFI_PASSWORD = "killratgang";
 
 // --- MQTT Configuration ---
-const char *MQTT_BROKER = "broker.hivemq.com";
-const uint16_t MQTT_PORT = 1883;
+const char *MQTT_BROKER = "177dbd1b53e648648166636cd93913a1.s1.eu.hivemq.cloud";
+const uint16_t MQTT_PORT = 8883;
 const char *MQTT_CLIENT_ID = "ESP32_AquaMonitor_01";
+const char *MQTT_USER = "thomsonmqtt";
+const char *MQTT_PASS = "Thomson123";
 
 // --- MQTT Topics ---
 const char *TOPIC_DATA = "thomson_h2o/data";   // Publish sensor data here
 const char *TOPIC_CMD = "thomson_h2o/led/cmd"; // Subscribe to LED commands
 const char *TOPIC_MOTOR_CMD =
     "aquamonitor/motor/command"; // Subscribe to motor commands
+const char *TOPIC_CONFIG_CMD =
+    "aquamonitor/settings/config"; // Subscribe to automation config
 
 // --- Hardware Pins ---
 const int TRIG_PIN = 14; // GPIO14 (D14) - JSN-SR04T TRIG
@@ -33,11 +38,16 @@ const int ECHO_PIN =
     27; // GPIO27 (D27) - JSN-SR04T ECHO (through voltage divider)
 const int LED_BUILTIN_PIN = 2;
 const int LED_EXTERNAL_PIN = 22;
-const int RELAY_PIN = 23; // GPIO23 for Motor / Water Pump Relay
+// --- BTS7960 Motor Driver Pins ---
+const int MOTOR_RPWM_PIN = 25; // Forward control (ON/OFF)
+const int MOTOR_LPWM_PIN = 26; // Reverse control (Always LOW)
+const int MOTOR_R_EN_PIN = 32; // Right Enable
+const int MOTOR_L_EN_PIN = 33; // Left Enable
 
 // --- Project Parameters ---
-const int TANK_HEIGHT =
-    100; // Total tank depth/distance from sensor to bottom (cm)
+const int DEAD_ZONE =
+    20; // Minimum measurable distance (cm) - Sensor blind spot
+
 const int TRIG_PULSE_WIDTH = 10; // 10 microseconds trigger pulse
 const long TIMEOUT_US = 30000;   // 30ms timeout for pulseIn (max range ~5m)
 const unsigned long SENSOR_DELAY = 5000; // Reporting interval (ms)
@@ -46,12 +56,17 @@ const unsigned long SENSOR_DELAY = 5000; // Reporting interval (ms)
 // 2. OBJECT INITIALIZATION
 // ==========================================
 
-WiFiClient espClient;
+WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
+Preferences preferences;
+
 unsigned long lastReportingTime = 0;
 unsigned long lastBlinkTime = 0;
 unsigned long lastWiFiAttempt = 0;
 bool motorState = false;
+float autoTurnOnDist = 84.0;
+float autoTurnOffDist = 28.0;
+String autoMode = "auto";
 float lastValidDistance = 0.0;
 float simTemp = 24.5;
 float simTurbidity = 500.0;
@@ -64,11 +79,12 @@ float simTurbidity = 500.0;
  * Function to read distance from JSN-SR04T
  */
 float readDistance() {
-  // Send 10µs trigger pulse
+  // Clear the trigPin
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
+  // Set the trigPin HIGH for 10 microseconds
   digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(TRIG_PULSE_WIDTH);
+  delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
 
   // Measure ECHO pulse duration
@@ -79,8 +95,9 @@ float readDistance() {
     return -1;
   }
 
-  // Formula: distance (cm) = pulse_duration (µs) / 58
-  float distance_cm = pulse_duration / 58.0;
+  // Calculate the distance (cm) using user's formula
+  float distance_cm = pulse_duration * 0.0343 / 2.0;
+
   return distance_cm;
 }
 
@@ -114,15 +131,41 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
   else if (String(topic) == TOPIC_MOTOR_CMD) {
     if (message == "ON") {
       motorState = true;
-      digitalWrite(RELAY_PIN, HIGH); // Assuming HIGH = Relay ON
-      Serial.println("[Motor] Power ON");
+      analogWrite(MOTOR_RPWM_PIN,
+                  127); // 127 out of 255 is ~50% duty cycle (Half Speed)
+      Serial.println("[Motor] Power ON (Half Speed)");
     } else if (message == "OFF") {
       motorState = false;
-      digitalWrite(RELAY_PIN, LOW); // Assuming LOW = Relay OFF
+      analogWrite(MOTOR_RPWM_PIN, 0); // 0 duty cycle (OFF)
       Serial.println("[Motor] Power OFF");
     }
-    // Instantly publish updated state to reflect on the website immediately
+    // Instantly publish updated state
     reportSensorData();
+  }
+  // Handle Automation Config
+  else if (String(topic) == TOPIC_CONFIG_CMD) {
+    JsonDocument configDoc;
+    DeserializationError error = deserializeJson(configDoc, message);
+    if (!error) {
+      if (configDoc.containsKey("turnOnDist"))
+        autoTurnOnDist = configDoc["turnOnDist"];
+      if (configDoc.containsKey("turnOffDist"))
+        autoTurnOffDist = configDoc["turnOffDist"];
+      if (configDoc.containsKey("mode"))
+        autoMode = configDoc["mode"].as<String>();
+
+      preferences.putFloat("turnOnDist", autoTurnOnDist);
+      preferences.putFloat("turnOffDist", autoTurnOffDist);
+      preferences.putString("mode", autoMode);
+
+      Serial.println("[Config] Saved: Mode=" + autoMode +
+                     " OnDist=" + String(autoTurnOnDist) +
+                     " OffDist=" + String(autoTurnOffDist));
+
+      // Force an immediate evaluation of the water level with the new logic
+      // rules
+      reportSensorData();
+    }
   }
 }
 
@@ -166,10 +209,11 @@ void reconnectMQTT() {
     Serial.print("[MQTT] Connecting to broker " + String(MQTT_BROKER) + "...");
     String dynClientId = "AQUA-" + String(random(0xffff), HEX);
 
-    if (mqttClient.connect(dynClientId.c_str())) {
+    if (mqttClient.connect(dynClientId.c_str(), MQTT_USER, MQTT_PASS)) {
       Serial.println("CONNECTED!");
       mqttClient.subscribe(TOPIC_CMD);
       mqttClient.subscribe(TOPIC_MOTOR_CMD);
+      mqttClient.subscribe(TOPIC_CONFIG_CMD);
     } else {
       Serial.print("FAILED (rc=");
       Serial.print(mqttClient.state());
@@ -195,14 +239,28 @@ void reportSensorData() {
     distance = lastValidDistance;
   }
 
-  // Convert distance to water level percentage
-  float waterLevelCm = TANK_HEIGHT - distance;
-  if (waterLevelCm < 0)
-    waterLevelCm = 0;
-  if (waterLevelCm > TANK_HEIGHT)
-    waterLevelCm = TANK_HEIGHT;
+  Serial.println("[Sensor] Raw Distance: " + String(distance) + " cm");
 
-  int percentage = (int)((waterLevelCm / TANK_HEIGHT) * 100);
+  // --- AUTOMATION ENGINE ---
+  if (autoMode == "auto") {
+    // motor turns on if distance drops too far (water is too low)
+    if (distance >= autoTurnOnDist && !motorState) {
+      motorState = true;
+      analogWrite(MOTOR_RPWM_PIN, 127);
+      Serial.println("[Auto] Motor ON triggered by Distance (" +
+                     String(distance) + " >= " + String(autoTurnOnDist) +
+                     "cm)");
+    }
+    // motor turns off if distance gets too close (water is too high)
+    else if (distance <= autoTurnOffDist && motorState) {
+      motorState = false;
+      analogWrite(MOTOR_RPWM_PIN, 0);
+      Serial.println("[Auto] Motor OFF triggered by Distance (" +
+                     String(distance) + " <= " + String(autoTurnOffDist) +
+                     "cm)");
+    }
+  }
+  // -------------------------
 
   // Simulate small fluctuations for secondary sensors to make Dashboard alive
   simTemp += ((random(0, 100) / 100.0) - 0.5) *
@@ -220,7 +278,7 @@ void reportSensorData() {
 
   // Create JSON Payload matching Dashboard expectations
   JsonDocument doc;
-  doc["level"] = percentage;
+  doc["level"] = 0; // Handled purely on frontend now
   doc["distance_cm"] = distance;
   doc["motor"] = motorState ? "ON" : "OFF";
   doc["status"] = "online";
@@ -246,19 +304,41 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
+  // Load automation preferences from ESP32 Flash Memory
+  preferences.begin("aqua", false);
+  autoTurnOnDist = preferences.getFloat("turnOnDist", 84.0);
+  autoTurnOffDist = preferences.getFloat("turnOffDist", 28.0);
+  autoMode = preferences.getString("mode", "auto");
+  Serial.println("\n[Config] Loaded: Mode=" + autoMode +
+                 " OnDist=" + String(autoTurnOnDist) +
+                 " OffDist=" + String(autoTurnOffDist));
+
   // Pin configurations
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   pinMode(LED_BUILTIN_PIN, OUTPUT);
   pinMode(LED_EXTERNAL_PIN, OUTPUT);
-  pinMode(RELAY_PIN, OUTPUT); // Motor Relay setup
+  pinMode(MOTOR_RPWM_PIN, OUTPUT);
+  pinMode(MOTOR_LPWM_PIN, OUTPUT);
+  pinMode(MOTOR_R_EN_PIN, OUTPUT);
+  pinMode(MOTOR_L_EN_PIN, OUTPUT);
 
+  // Initial Pin States
   digitalWrite(TRIG_PIN, LOW);
   digitalWrite(LED_BUILTIN_PIN, LOW);
   digitalWrite(LED_EXTERNAL_PIN, LOW);
-  digitalWrite(RELAY_PIN, LOW); // Start with motor off
+
+  // Initialize BTS7960 state
+  digitalWrite(MOTOR_RPWM_PIN, LOW);  // Motor OFF initially
+  digitalWrite(MOTOR_LPWM_PIN, LOW);  // Never reverse
+  digitalWrite(MOTOR_R_EN_PIN, HIGH); // Enable right (forward) driving
+  digitalWrite(MOTOR_L_EN_PIN, HIGH); // Enable left (reverse) driving
 
   setupWiFi();
+
+  // Configure secure client for TLS connection
+  espClient.setInsecure(); // Disable certificate verification
+
   mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
 
