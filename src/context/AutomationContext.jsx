@@ -14,7 +14,6 @@ export const AutomationProvider = ({ children }) => {
         minLevel: 20,
         maxLevel: 90,
         mode: 'auto',
-        tankHeight: 100,
         scheduleEnabled: true,
         startTime: '06:00',
         endTime: '18:00',
@@ -67,7 +66,6 @@ export const AutomationProvider = ({ children }) => {
                     minLevel: 20,
                     maxLevel: 90,
                     mode: 'auto',
-                    tankHeight: 100,
                     scheduleEnabled: true,
                     startTime: '06:00',
                     endTime: '18:00',
@@ -100,21 +98,15 @@ export const AutomationProvider = ({ children }) => {
 
             // 2. Broadcast to ESP32 via MQTT if connected
             if (mqttClient && mqttClient.connected) {
-                const effectiveHeight = Math.max(1, newSettings.tankHeight - 20);
-
-                // turnOnDistance represents minLevel. Motor turns on when distance drops OUT of the water (getting larger).
-                const turnOnDistance = newSettings.tankHeight - ((newSettings.minLevel / 100) * effectiveHeight);
-                // turnOffDistance represents maxLevel. Motor turns off as distance approaches sensor (getting smaller).
-                const turnOffDistance = newSettings.tankHeight - ((newSettings.maxLevel / 100) * effectiveHeight);
-
+                // Send level percentages directly to firmware
                 const espConfigPayload = {
                     mode: newSettings.mode,
-                    turnOnDist: Math.round(turnOnDistance * 10) / 10,
-                    turnOffDist: Math.round(turnOffDistance * 10) / 10
+                    turnOnLevel: newSettings.minLevel,
+                    turnOffLevel: newSettings.maxLevel
                 };
 
                 mqttClient.publish('aquamonitor/settings/config', JSON.stringify(espConfigPayload), { qos: 1 });
-                console.log("Hardware distance thresholds published to MQTT", espConfigPayload);
+                console.log("Level thresholds published to MQTT", espConfigPayload);
             }
 
             return { success: true };

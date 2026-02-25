@@ -1,20 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+
 import './PremiumWaterTank.css';
 
-export default function PremiumWaterTank({ level, tankHeight = 100, onHeightChange }) {
-    const [localHeight, setLocalHeight] = useState(tankHeight);
-
-    useEffect(() => {
-        setLocalHeight(tankHeight);
-    }, [tankHeight]);
-
-    const handleHeightSubmit = () => {
-        const parsed = parseInt(localHeight, 10);
-        if (!isNaN(parsed) && parsed > 0 && onHeightChange && parsed !== tankHeight) {
-            onHeightChange(parsed);
-        }
-    };
-
+export default function PremiumWaterTank({ level }) {
     // Level is percentage 0-100
     const displayLevel = Math.round(level);
 
@@ -65,11 +53,13 @@ export default function PremiumWaterTank({ level, tankHeight = 100, onHeightChan
                     </div>
                 </div>
 
-                {/* Level Markers */}
+                {/* Level Markers (Matching the 10 hardware probes) */}
                 <div className="level-markers">
-                    <div className="marker" style={{ top: '10%' }}><span>90%</span></div>
-                    <div className="marker" style={{ top: '50%' }}><span>50%</span></div>
-                    <div className="marker" style={{ top: '80%' }}><span>20%</span></div>
+                    {[100, 90, 80, 70, 60, 50, 40, 30, 20, 10].map(pct => (
+                        <div key={pct} className="marker" style={{ top: `${100 - pct}%` }}>
+                            <span>{pct}%</span>
+                        </div>
+                    ))}
                 </div>
 
                 {/* Center Percentage Display */}
@@ -83,27 +73,11 @@ export default function PremiumWaterTank({ level, tankHeight = 100, onHeightChan
             </div>
 
             <div className="tank-stats">
-                <div className="stat-item" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <span className="stat-label">Tank Height (cm)</span>
-                    <input
-                        type="number"
-                        value={localHeight}
-                        onChange={(e) => setLocalHeight(e.target.value)}
-                        onBlur={handleHeightSubmit}
-                        onKeyDown={(e) => e.key === 'Enter' && handleHeightSubmit()}
-                        style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '0.5rem',
-                            color: 'inherit',
-                            width: '80px',
-                            textAlign: 'center',
-                            fontSize: '1.2rem',
-                            fontWeight: 'bold',
-                            padding: '0.2rem',
-                            outline: 'none'
-                        }}
-                    />
+                <div className="stat-item">
+                    <span className="stat-label">Active Probes</span>
+                    <span className="stat-value" style={{ color: 'var(--primary)' }}>
+                        {level > 0 ? Math.round(level / 10) : 0} / 10
+                    </span>
                 </div>
                 <div className="stat-item">
                     <span className="stat-label">Status</span>

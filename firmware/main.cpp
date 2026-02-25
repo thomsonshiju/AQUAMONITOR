@@ -1,7 +1,7 @@
 /*
  * AQUA Project - ESP32 Water Level Monitoring System
- * Sensor: JSN-SR04T (Ultrasonic) - Integrated with Pins 14/27
- * Connectivity: MQTT (HiveMQ)
+ * Sensor: 10-Contact Discrete Level Probes (D15, D2, D4, D5, D18, D19, D22,
+ * D23, D12, D14) Connectivity: MQTT (HiveMQ)
  */
 
 #include <ArduinoJson.h>
@@ -33,11 +33,16 @@ const char *TOPIC_CONFIG_CMD =
     "aquamonitor/settings/config"; // Subscribe to automation config
 
 // --- Hardware Pins ---
-const int TRIG_PIN = 14; // GPIO14 (D14) - JSN-SR04T TRIG
-const int ECHO_PIN =
-    27; // GPIO27 (D27) - JSN-SR04T ECHO (through voltage divider)
-const int LED_BUILTIN_PIN = 2;
-const int LED_EXTERNAL_PIN = 22;
+// Level Sensor Contacts (Ground-triggered via INPUT_PULLUP)
+const int LEVEL_PINS[] = {15, 4, 5, 18, 19, 21, 23, 13, 12, 14};
+const int LEVEL_PCTS[] = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+const int NUM_LEVELS = 10;
+
+// NOTE: GPIO 2 and GPIO 22 are no longer used.
+// GPIO 21 is now a level sensor (60%). Indicator LED moved to GPIO17.
+const int LED_INDICATOR_PIN = 17; // GPIO17 - Status LED
+const int LED_EXTERNAL_PIN = 27;  // GPIO27 - MQTT-commanded external LED
+
 // --- BTS7960 Motor Driver Pins ---
 const int MOTOR_RPWM_PIN = 25; // Forward control (ON/OFF)
 const int MOTOR_LPWM_PIN = 26; // Reverse control (Always LOW)
@@ -45,12 +50,7 @@ const int MOTOR_R_EN_PIN = 32; // Right Enable
 const int MOTOR_L_EN_PIN = 33; // Left Enable
 
 // --- Project Parameters ---
-const int DEAD_ZONE =
-    20; // Minimum measurable distance (cm) - Sensor blind spot
-
-const int TRIG_PULSE_WIDTH = 10; // 10 microseconds trigger pulse
-const long TIMEOUT_US = 30000;   // 30ms timeout for pulseIn (max range ~5m)
-const unsigned long SENSOR_DELAY = 5000; // Reporting interval (ms)
+const unsigned long SENSOR_DELAY = 2000; // Reporting interval (ms)
 
 // ==========================================
 // 2. OBJECT INITIALIZATION
@@ -61,13 +61,11 @@ PubSubClient mqttClient(espClient);
 Preferences preferences;
 
 unsigned long lastReportingTime = 0;
-unsigned long lastBlinkTime = 0;
 unsigned long lastWiFiAttempt = 0;
 bool motorState = false;
-float autoTurnOnDist = 84.0;
-float autoTurnOffDist = 28.0;
+int autoTurnOnLevel = 20;  // Motor turns ON when level drops to or below this %
+int autoTurnOffLevel = 90; // Motor turns OFF when level reaches this %
 String autoMode = "auto";
-float lastValidDistance = 0.0;
 float simTemp = 24.5;
 float simTurbidity = 500.0;
 
@@ -76,29 +74,24 @@ float simTurbidity = 500.0;
 // ==========================================
 
 /**
- * Function to read distance from JSN-SR04T
+ * Function to read current water level percentage from contact pins.
+ * Scans bottom-up (10% -> 100%) and stops at the first gap.
+ * Water rises continuously, so if 20% is submerged, 10% must be too.
+ * A gap (ungrounded pin below a grounded one) is treated as a fault — we
+ * report only the last confirmed consecutive level.
  */
-float readDistance() {
-  // Clear the trigPin
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  // Set the trigPin HIGH for 10 microseconds
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-
-  // Measure ECHO pulse duration
-  long pulse_duration = pulseIn(ECHO_PIN, HIGH, TIMEOUT_US);
-
-  if (pulse_duration == 0) {
-    Serial.println("[Sensor] Warning: No echo received");
-    return -1;
+int readWaterLevelPercentage() {
+  int detectedLevel = 0;
+  for (int i = 0; i < NUM_LEVELS; i++) {
+    if (digitalRead(LEVEL_PINS[i]) == LOW) {
+      // This probe is submerged — advance the confirmed level
+      detectedLevel = LEVEL_PCTS[i];
+    } else {
+      // Gap found — water hasn't reached this probe, stop here
+      break;
+    }
   }
-
-  // Calculate the distance (cm) using user's formula
-  float distance_cm = pulse_duration * 0.0343 / 2.0;
-
-  return distance_cm;
+  return detectedLevel;
 }
 
 /**
@@ -120,10 +113,10 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
   // Handle LED Commands
   if (String(topic) == TOPIC_CMD) {
     if (message == "ON") {
-      digitalWrite(LED_BUILTIN_PIN, HIGH);
+      digitalWrite(LED_INDICATOR_PIN, HIGH);
       digitalWrite(LED_EXTERNAL_PIN, HIGH);
     } else if (message == "OFF") {
-      digitalWrite(LED_BUILTIN_PIN, LOW);
+      digitalWrite(LED_INDICATOR_PIN, LOW);
       digitalWrite(LED_EXTERNAL_PIN, LOW);
     }
   }
@@ -147,23 +140,21 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
     JsonDocument configDoc;
     DeserializationError error = deserializeJson(configDoc, message);
     if (!error) {
-      if (configDoc.containsKey("turnOnDist"))
-        autoTurnOnDist = configDoc["turnOnDist"];
-      if (configDoc.containsKey("turnOffDist"))
-        autoTurnOffDist = configDoc["turnOffDist"];
+      if (configDoc.containsKey("turnOnLevel"))
+        autoTurnOnLevel = configDoc["turnOnLevel"];
+      if (configDoc.containsKey("turnOffLevel"))
+        autoTurnOffLevel = configDoc["turnOffLevel"];
       if (configDoc.containsKey("mode"))
         autoMode = configDoc["mode"].as<String>();
 
-      preferences.putFloat("turnOnDist", autoTurnOnDist);
-      preferences.putFloat("turnOffDist", autoTurnOffDist);
+      preferences.putInt("turnOnLevel", autoTurnOnLevel);
+      preferences.putInt("turnOffLevel", autoTurnOffLevel);
       preferences.putString("mode", autoMode);
 
       Serial.println("[Config] Saved: Mode=" + autoMode +
-                     " OnDist=" + String(autoTurnOnDist) +
-                     " OffDist=" + String(autoTurnOffDist));
+                     " OnLevel=" + String(autoTurnOnLevel) +
+                     "% OffLevel=" + String(autoTurnOffLevel) + "%");
 
-      // Force an immediate evaluation of the water level with the new logic
-      // rules
       reportSensorData();
     }
   }
@@ -183,8 +174,8 @@ void setupWiFi() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    // Blink LED while connecting
-    digitalWrite(LED_BUILTIN_PIN, !digitalRead(LED_BUILTIN_PIN));
+    // Blink indicator LED while connecting (GPIO21, not GPIO2)
+    digitalWrite(LED_INDICATOR_PIN, !digitalRead(LED_INDICATOR_PIN));
 
     attempt++;
     if (attempt > 40) { // ~20 seconds
@@ -195,7 +186,7 @@ void setupWiFi() {
     }
   }
 
-  digitalWrite(LED_BUILTIN_PIN, LOW);
+  digitalWrite(LED_INDICATOR_PIN, HIGH); // Solid ON = connected
   Serial.println("\n[WiFi] Connected Successfully!");
   Serial.println("[WiFi] IP Address: " + WiFi.localIP().toString());
   Serial.println("------------------\n");
@@ -230,34 +221,25 @@ void reconnectMQTT() {
  * Reads sensor and publishes JSON data
  */
 void reportSensorData() {
-  float distance = readDistance();
+  int levelPct = readWaterLevelPercentage();
 
-  // Smooth/Fall-back distance reading to avoid UI glitches
-  if (distance >= 0 && distance <= 500) {
-    lastValidDistance = distance;
-  } else {
-    distance = lastValidDistance;
-  }
-
-  Serial.println("[Sensor] Raw Distance: " + String(distance) + " cm");
+  Serial.println("[Sensor] Level: " + String(levelPct) + "%");
 
   // --- AUTOMATION ENGINE ---
   if (autoMode == "auto") {
-    // motor turns on if distance drops too far (water is too low)
-    if (distance >= autoTurnOnDist && !motorState) {
+    // Motor turns ON if level drops to or below the low threshold
+    if (levelPct <= autoTurnOnLevel && !motorState) {
       motorState = true;
       analogWrite(MOTOR_RPWM_PIN, 127);
-      Serial.println("[Auto] Motor ON triggered by Distance (" +
-                     String(distance) + " >= " + String(autoTurnOnDist) +
-                     "cm)");
+      Serial.println("[Auto] Motor ON - Level " + String(levelPct) +
+                     "% <= " + String(autoTurnOnLevel) + "%");
     }
-    // motor turns off if distance gets too close (water is too high)
-    else if (distance <= autoTurnOffDist && motorState) {
+    // Motor turns OFF when level reaches the high threshold
+    else if (levelPct >= autoTurnOffLevel && motorState) {
       motorState = false;
       analogWrite(MOTOR_RPWM_PIN, 0);
-      Serial.println("[Auto] Motor OFF triggered by Distance (" +
-                     String(distance) + " <= " + String(autoTurnOffDist) +
-                     "cm)");
+      Serial.println("[Auto] Motor OFF - Level " + String(levelPct) +
+                     "% >= " + String(autoTurnOffLevel) + "%");
     }
   }
   // -------------------------
@@ -276,10 +258,9 @@ void reportSensorData() {
   if (simTurbidity > 800.0)
     simTurbidity = 800.0;
 
-  // Create JSON Payload matching Dashboard expectations
+  // Create JSON Payload
   JsonDocument doc;
-  doc["level"] = 0; // Handled purely on frontend now
-  doc["distance_cm"] = distance;
+  doc["level"] = levelPct;
   doc["motor"] = motorState ? "ON" : "OFF";
   doc["status"] = "online";
   doc["temp"] = simTemp;
@@ -306,17 +287,18 @@ void setup() {
 
   // Load automation preferences from ESP32 Flash Memory
   preferences.begin("aqua", false);
-  autoTurnOnDist = preferences.getFloat("turnOnDist", 84.0);
-  autoTurnOffDist = preferences.getFloat("turnOffDist", 28.0);
+  autoTurnOnLevel = preferences.getInt("turnOnLevel", 20);
+  autoTurnOffLevel = preferences.getInt("turnOffLevel", 90);
   autoMode = preferences.getString("mode", "auto");
   Serial.println("\n[Config] Loaded: Mode=" + autoMode +
-                 " OnDist=" + String(autoTurnOnDist) +
-                 " OffDist=" + String(autoTurnOffDist));
+                 " OnLevel=" + String(autoTurnOnLevel) +
+                 "% OffLevel=" + String(autoTurnOffLevel) + "%");
 
   // Pin configurations
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  pinMode(LED_BUILTIN_PIN, OUTPUT);
+  for (int i = 0; i < NUM_LEVELS; i++) {
+    pinMode(LEVEL_PINS[i], INPUT_PULLUP);
+  }
+  pinMode(LED_INDICATOR_PIN, OUTPUT);
   pinMode(LED_EXTERNAL_PIN, OUTPUT);
   pinMode(MOTOR_RPWM_PIN, OUTPUT);
   pinMode(MOTOR_LPWM_PIN, OUTPUT);
@@ -324,8 +306,7 @@ void setup() {
   pinMode(MOTOR_L_EN_PIN, OUTPUT);
 
   // Initial Pin States
-  digitalWrite(TRIG_PIN, LOW);
-  digitalWrite(LED_BUILTIN_PIN, LOW);
+  digitalWrite(LED_INDICATOR_PIN, LOW);
   digitalWrite(LED_EXTERNAL_PIN, LOW);
 
   // Initialize BTS7960 state
@@ -367,14 +348,12 @@ void loop() {
     }
   }
 
-  // Blink LED when connected to WiFi (hotspot), stop when disconnected
+  // Indicator LED: Solid ON when connected, OFF when disconnected
+  // (GPIO2 is now a level sensor probe — no blinking on that pin)
   if (WiFi.status() == WL_CONNECTED) {
-    if (millis() - lastBlinkTime >= 500) {
-      lastBlinkTime = millis();
-      digitalWrite(LED_BUILTIN_PIN, !digitalRead(LED_BUILTIN_PIN));
-    }
+    digitalWrite(LED_INDICATOR_PIN, HIGH);
   } else {
-    digitalWrite(LED_BUILTIN_PIN, LOW);
+    digitalWrite(LED_INDICATOR_PIN, LOW);
   }
 
   unsigned long currentMillis = millis();

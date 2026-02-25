@@ -22,8 +22,6 @@ export default function Dashboard() {
     const { settings, updateSettings, loading: settingsLoading } = useAutomation();
 
     if (user?.role?.toLowerCase() === 'admin') return null;
-
-    const [rawDistance, setRawDistance] = useState(0);
     const [waterLevel, setWaterLevel] = useState(0);
     const [hasReceivedData, setHasReceivedData] = useState(false);
     const [isMotorOn, setIsMotorOn] = useState(false);
@@ -79,7 +77,12 @@ export default function Dashboard() {
             if (topic === 'thomson_h2o/data') {
                 try {
                     const data = JSON.parse(message.toString());
-                    setRawDistance(data.distance_cm || 0);
+
+                    // Level is sent directly from firmware contact probes
+                    if (data.level !== undefined && data.level !== null) {
+                        setWaterLevel(Math.round(data.level));
+                    }
+
                     setHasReceivedData(true);
                     setIsMotorOn(data.motor === "ON");
                     setSensors({
@@ -97,23 +100,6 @@ export default function Dashboard() {
 
         return () => client.end();
     }, []);
-
-    // Calculate purely frontend-driven Water Percentage
-    useEffect(() => {
-        if (!hasReceivedData) return;
-        const h = settings?.tankHeight || 100;
-        const deadZone = 20;
-        const effectiveSpace = Math.max(1, h - deadZone);
-
-        let safeDist = rawDistance;
-        if (safeDist < deadZone) safeDist = deadZone;
-        if (safeDist > h) safeDist = h;
-
-        const wLevelCm = h - safeDist;
-        const percentage = (wLevelCm / effectiveSpace) * 100;
-
-        setWaterLevel(Math.round(percentage));
-    }, [rawDistance, settings?.tankHeight, hasReceivedData]);
 
     // Automation Logic
     useEffect(() => {
@@ -226,7 +212,7 @@ export default function Dashboard() {
                     )}
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '0.75rem',
-                        background: 'rgba(var(--bg-card-rgb), 0.5)', padding: '0.6rem 1.25rem',
+                        padding: '0.6rem 1.25rem',
                         borderRadius: '2rem', border: '1px solid var(--border-color)',
                         flex: isMobile ? 1 : 'none', justifyContent: 'center',
                         backdropFilter: 'blur(10px)', background: 'rgba(var(--bg-card-rgb), 0.2)'
@@ -268,8 +254,6 @@ export default function Dashboard() {
                         <div style={{ transform: isMobile ? 'scale(0.9)' : 'scale(1.1)', transformOrigin: 'center' }}>
                             <PremiumWaterTank
                                 level={waterLevel}
-                                tankHeight={settings?.tankHeight || 100}
-                                onHeightChange={(newHeight) => updateSettings({ ...settings, tankHeight: newHeight })}
                             />
                         </div>
                     </div>
