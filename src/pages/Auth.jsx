@@ -15,7 +15,6 @@ export default function Auth({ mode = 'login' }) {
         confirmPassword: ''
     });
     const [fieldErrors, setFieldErrors] = useState({});
-    const [isAdminFill, setIsAdminFill] = useState(false);
 
     const { login, signup, resetPassword, user } = useAuth();
     const navigate = useNavigate();
@@ -144,19 +143,6 @@ export default function Auth({ mode = 'login' }) {
         navigate(targetLogin ? '/login' : '/signup', { replace: true });
     };
 
-    const handleAdminToggle = (e) => {
-        const checked = e.target.checked;
-        setIsAdminFill(checked);
-        if (checked) {
-            setEmail('manager@aquamonitor.com');
-            setPassword('manager123');
-            setFieldErrors({});
-        } else {
-            setEmail('');
-            setPassword('');
-        }
-    };
-
     const handleEmailChange = (val) => {
         setEmail(val);
         validateField('email', val);
@@ -240,14 +226,7 @@ export default function Auth({ mode = 'login' }) {
                                     {isLogin && fieldErrors.password && <div style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.25rem' }}>{fieldErrors.password}</div>}
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div className="admin-toggle-container" style={{ margin: 0, padding: '0.4rem 0.75rem', background: 'transparent', border: 'none' }}>
-                                        <span className="admin-toggle-label" style={{ marginRight: '0.5rem', opacity: 0.7 }}>Fill Admin?</span>
-                                        <label className="switch">
-                                            <input type="checkbox" checked={isAdminFill} onChange={handleAdminToggle} />
-                                            <span className="slider"></span>
-                                        </label>
-                                    </div>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                                     <button type="button" onClick={handleForgotPassword} className="auth-link" style={{ fontSize: '0.85rem' }}>
                                         Forgot Password?
                                     </button>
