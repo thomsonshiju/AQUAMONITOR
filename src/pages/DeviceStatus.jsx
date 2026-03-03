@@ -115,7 +115,7 @@ export default function DeviceStatus() {
                 alignItems: 'start'
             }}>
                 {/* 1. Cloud Infrastructure */}
-                <div className="card" style={{ padding: '2rem' }}>
+                <div className="card" style={{ padding: isMobile ? '1.5rem' : '2rem', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
                         <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Cloud Infrastructure</h3>
                         <div style={{ padding: '0.5rem', borderRadius: '0.75rem', background: 'rgba(249, 115, 22, 0.1)' }}>
@@ -140,7 +140,7 @@ export default function DeviceStatus() {
                 </div>
 
                 {/* 2. MQTT Connection */}
-                <div className="card" style={{ padding: '2rem' }}>
+                <div className="card" style={{ padding: isMobile ? '1.5rem' : '2rem', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
                         <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>MQTT Connection</h3>
                         <div style={{ padding: '0.5rem', borderRadius: '0.75rem', background: 'rgba(245, 158, 11, 0.1)' }}>
@@ -150,22 +150,22 @@ export default function DeviceStatus() {
 
                     <div style={{ display: 'grid', gap: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Broker Status</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, flexShrink: 0 }}>Broker Status</span>
                             <span style={{ color: mqttStatus === 'Connected' ? 'var(--success)' : 'var(--danger)', fontWeight: 700, fontSize: '0.95rem' }}>{mqttStatus}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Broker URL</span>
-                            <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem' }}>{MQTT_CONFIG.hostname}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem', gap: '1rem' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, flexShrink: 0 }}>Broker URL</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={MQTT_CONFIG.hostname}>{MQTT_CONFIG.hostname}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Topic</span>
-                            <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem' }}>thomson_h2o/data</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, flexShrink: 0 }}>Topic</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title="thomson_h2o/data">thomson_h2o/data</span>
                         </div>
                     </div>
                 </div>
 
                 {/* 3. Performance */}
-                <div className="card" style={{ padding: '2rem' }}>
+                <div className="card" style={{ padding: isMobile ? '1.5rem' : '2rem', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
                         <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Performance</h3>
                         <div style={{ padding: '0.5rem', borderRadius: '0.75rem', background: 'rgba(139, 92, 246, 0.1)' }}>
