@@ -155,11 +155,11 @@ export default function DeviceStatus() {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem', gap: '1rem' }}>
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, flexShrink: 0 }}>Broker URL</span>
-                            <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={MQTT_CONFIG.hostname}>{MQTT_CONFIG.hostname}</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }} title={MQTT_CONFIG.hostname}>{MQTT_CONFIG.hostname}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, flexShrink: 0 }}>Topic</span>
-                            <span style={{ fontWeight: 700, fontSize: '0.9rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title="thomson_h2o/data">thomson_h2o/data</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'monospace', padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.05)', borderRadius: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }} title="thomson_h2o/data">thomson_h2o/data</span>
                         </div>
                     </div>
                 </div>

@@ -1,0 +1,138 @@
+Traceback (most recent call last):
+  File "/Users/thomsonshiju/Documents/AQUAMONITOR /selenium_tests/test_01_registration.py", line 44, in test_registration
+    wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Passwords do not match')]")))
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/selenium/webdriver/support/wait.py", line 121, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+0   chromedriver                        0x0000000102f455dc cxxbridge1$str$ptr + 3653648
+1   chromedriver                        0x0000000102f3de3c cxxbridge1$str$ptr + 3623024
+2   chromedriver                        0x00000001029a8100 cxxbridge1$string$len + 88404
+3   chromedriver                        0x00000001029ea41c cxxbridge1$string$len + 359536
+4   chromedriver                        0x0000000102a23ba8 cxxbridge1$string$len + 594940
+5   chromedriver                        0x00000001029df0fc cxxbridge1$string$len + 313680
+6   chromedriver                        0x00000001029dfd4c cxxbridge1$string$len + 316832
+7   chromedriver                        0x0000000102f1064c cxxbridge1$str$ptr + 3436672
+8   chromedriver                        0x0000000102f13988 cxxbridge1$str$ptr + 3449788
+9   chromedriver                        0x0000000102ef7a5c cxxbridge1$str$ptr + 3335312
+10  chromedriver                        0x0000000102f1424c cxxbridge1$str$ptr + 3452032
+11  chromedriver                        0x0000000102ee8ce8 cxxbridge1$str$ptr + 3274524
+12  chromedriver                        0x0000000102f2e9dc cxxbridge1$str$ptr + 3560464
+13  chromedriver                        0x0000000102f2eb58 cxxbridge1$str$ptr + 3560844
+14  chromedriver                        0x0000000102f3dad4 cxxbridge1$str$ptr + 3622152
+15  libsystem_pthread.dylib             0x000000019b39bc08 _pthread_start + 136
+16  libsystem_pthread.dylib             0x000000019b396ba8 thread_start + 8
+
+--- Testing Registration Flow ---
+Registration Page Loaded ✅
+Testing Password Mismatch Scenario...
+Clicking submit button...
+Waiting for mismatch error...
+Registration Test Failed ❌: Message: 
+Stacktrace:
+0   chromedriver                        0x0000000102f455dc cxxbridge1$str$ptr + 3653648
+1   chromedriver                        0x0000000102f3de3c cxxbridge1$str$ptr + 3623024
+2   chromedriver                        0x00000001029a8100 cxxbridge1$string$len + 88404
+3   chromedriver                        0x00000001029ea41c cxxbridge1$string$len + 359536
+4   chromedriver                        0x0000000102a23ba8 cxxbridge1$string$len + 594940
+5   chromedriver                        0x00000001029df0fc cxxbridge1$string$len + 313680
+6   chromedriver                        0x00000001029dfd4c cxxbridge1$string$len + 316832
+7   chromedriver                        0x0000000102f1064c cxxbridge1$str$ptr + 3436672
+8   chromedriver                        0x0000000102f13988 cxxbridge1$str$ptr + 3449788
+9   chromedriver                        0x0000000102ef7a5c cxxbridge1$str$ptr + 3335312
+10  chromedriver                        0x0000000102f1424c cxxbridge1$str$ptr + 3452032
+11  chromedriver                        0x0000000102ee8ce8 cxxbridge1$str$ptr + 3274524
+12  chromedriver                        0x0000000102f2e9dc cxxbridge1$str$ptr + 3560464
+13  chromedriver                        0x0000000102f2eb58 cxxbridge1$str$ptr + 3560844
+14  chromedriver                        0x0000000102f3dad4 cxxbridge1$str$ptr + 3622152
+15  libsystem_pthread.dylib             0x000000019b39bc08 _pthread_start + 136
+16  libsystem_pthread.dylib             0x000000019b396ba8 thread_start + 8
+
+PAGE SOURCE DUMP:
+<html lang="en"><head>
+  <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+  <script type="module" src="/@vite/client"></script>
+
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="/vite.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AQUAMONITOR</title>
+<style type="text/css" data-vite-dev-id="/Users/thomsonshiju/Documents/AQUAMONITOR /src/styles/NotificationCenter.css">.notification-center {
+    position: relative;
+}
+
+.notification-bell {
+    position: relative;
+    padding: 0.5rem !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.notification-bell:hover {
+    transform: scale(1.1);
+    color: var(--primary);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: linear-gradient(135deg, #ff4757, #ff6348);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.15rem 0.35rem;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(255, 71, 87, 0.4);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: 420px;
+    max-width: 90vw;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    animation: slideDown 0.3s ease;
+    overflow: hidden;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notification-he

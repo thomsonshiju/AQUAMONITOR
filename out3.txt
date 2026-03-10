@@ -1,0 +1,48 @@
+Traceback (most recent call last):
+  File "/Users/thomsonshiju/Documents/AQUAMONITOR /selenium_tests/test_01_registration.py", line 39, in test_registration
+    wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Passwords do not match')]")))
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/selenium/webdriver/support/wait.py", line 121, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+0   chromedriver                        0x0000000102e495dc cxxbridge1$str$ptr + 3653648
+1   chromedriver                        0x0000000102e41e3c cxxbridge1$str$ptr + 3623024
+2   chromedriver                        0x00000001028ac100 cxxbridge1$string$len + 88404
+3   chromedriver                        0x00000001028ee41c cxxbridge1$string$len + 359536
+4   chromedriver                        0x0000000102927ba8 cxxbridge1$string$len + 594940
+5   chromedriver                        0x00000001028e30fc cxxbridge1$string$len + 313680
+6   chromedriver                        0x00000001028e3d4c cxxbridge1$string$len + 316832
+7   chromedriver                        0x0000000102e1464c cxxbridge1$str$ptr + 3436672
+8   chromedriver                        0x0000000102e17988 cxxbridge1$str$ptr + 3449788
+9   chromedriver                        0x0000000102dfba5c cxxbridge1$str$ptr + 3335312
+10  chromedriver                        0x0000000102e1824c cxxbridge1$str$ptr + 3452032
+11  chromedriver                        0x0000000102decce8 cxxbridge1$str$ptr + 3274524
+12  chromedriver                        0x0000000102e329dc cxxbridge1$str$ptr + 3560464
+13  chromedriver                        0x0000000102e32b58 cxxbridge1$str$ptr + 3560844
+14  chromedriver                        0x0000000102e41ad4 cxxbridge1$str$ptr + 3622152
+15  libsystem_pthread.dylib             0x000000019b39bc08 _pthread_start + 136
+16  libsystem_pthread.dylib             0x000000019b396ba8 thread_start + 8
+
+--- Testing Registration Flow ---
+Registration Page Loaded ✅
+Testing Password Mismatch Scenario...
+Registration Test Failed ❌: Message: 
+Stacktrace:
+0   chromedriver                        0x0000000102e495dc cxxbridge1$str$ptr + 3653648
+1   chromedriver                        0x0000000102e41e3c cxxbridge1$str$ptr + 3623024
+2   chromedriver                        0x00000001028ac100 cxxbridge1$string$len + 88404
+3   chromedriver                        0x00000001028ee41c cxxbridge1$string$len + 359536
+4   chromedriver                        0x0000000102927ba8 cxxbridge1$string$len + 594940
+5   chromedriver                        0x00000001028e30fc cxxbridge1$string$len + 313680
+6   chromedriver                        0x00000001028e3d4c cxxbridge1$string$len + 316832
+7   chromedriver                        0x0000000102e1464c cxxbridge1$str$ptr + 3436672
+8   chromedriver                        0x0000000102e17988 cxxbridge1$str$ptr + 3449788
+9   chromedriver                        0x0000000102dfba5c cxxbridge1$str$ptr + 3335312
+10  chromedriver                        0x0000000102e1824c cxxbridge1$str$ptr + 3452032
+11  chromedriver                        0x0000000102decce8 cxxbridge1$str$ptr + 3274524
+12  chromedriver                        0x0000000102e329dc cxxbridge1$str$ptr + 3560464
+13  chromedriver                        0x0000000102e32b58 cxxbridge1$str$ptr + 3560844
+14  chromedriver                        0x0000000102e41ad4 cxxbridge1$str$ptr + 3622152
+15  libsystem_pthread.dylib             0x000000019b39bc08 _pthread_start + 136
+16  libsystem_pthread.dylib             0x000000019b396ba8 thread_start + 8
+
