@@ -134,7 +134,15 @@ function BroadcastNotificationPanel({
                     }
                     try {
                         console.log(`Sending email to ${user.email}...`);
-                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3005';
+                        const customApiUrl = import.meta.env.VITE_API_URL;
+
+                        // If we are in production (HTTPS) but trying to hit localhost (HTTP), it will always fail.
+                        // Throw a more informative error.
+                        if (window.location.protocol === 'https:' && (!customApiUrl || customApiUrl.includes('localhost'))) {
+                            throw new Error('Your frontend is on HTTPS but trying to contact a local HTTP backend (localhost). Please deploy your backend and set VITE_API_URL, or use the Firebase Function provided!');
+                        }
+
+                        const apiUrl = customApiUrl || 'http://localhost:3005';
                         const response = await fetch(`${apiUrl}/api/send-email`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },

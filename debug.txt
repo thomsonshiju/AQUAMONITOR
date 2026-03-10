@@ -1,0 +1,1 @@
+We are testing Azure deployed endpoint
