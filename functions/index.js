@@ -3,24 +3,29 @@ import nodemailer from "nodemailer";
 import cors from "cors";
 
 const app = express();
-app.use(cors());
+
+app.use(cors({
+    origin: ["https://aquamonitor.web.app"]
+}));
+
 app.use(express.json());
 
-// Email transporter
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-        user: "aquamonitor2025@gmail.com",
-        pass: "lvot ewmt tbuf fqdx"
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
 
-// Test route
 app.get("/", (req, res) => {
     res.send("AquaMonitor Email API Running");
 });
 
-// Email API
+app.get("/health", (req, res) => {
+    res.json({ status: "OK" });
+});
+
 app.post("/sendEmail", async (req, res) => {
     const { to, subject, html } = req.body;
 
@@ -30,13 +35,13 @@ app.post("/sendEmail", async (req, res) => {
 
     try {
         await transporter.sendMail({
-            from: "aquamonitor2025@gmail.com",
+            from: process.env.EMAIL_USER,
             to,
             subject,
             html
         });
 
-        res.json({ success: true, message: "Email sent successfully" });
+        res.json({ success: true });
 
     } catch (error) {
         console.error(error);
@@ -44,7 +49,6 @@ app.post("/sendEmail", async (req, res) => {
     }
 });
 
-// IMPORTANT for Railway
 const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => {
