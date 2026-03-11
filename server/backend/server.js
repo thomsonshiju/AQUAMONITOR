@@ -2,8 +2,39 @@ import express from "express";
 import nodemailer from "nodemailer";
 import cors from "cors";
 import dotenv from "dotenv";
-
+import admin from "firebase-admin";
+import fs from "fs";
 dotenv.config();
+// Firebase Admin Initialization
+let firebaseAdminInitialized = false;
+try {
+    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT;
+    
+    if (serviceAccountVar) {
+        // Use environment variable if available (Recommended for Azure)
+        const serviceAccount = JSON.parse(serviceAccountVar);
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        firebaseAdminInitialized = true;
+        console.log("Firebase Admin initialized via Environment Variable");
+    } else if (fs.existsSync("./serviceAccountKey.json")) {
+        // Fallback to local file (for local development)
+        const serviceAccount = JSON.parse(fs.readFileSync("./serviceAccountKey.json", "utf8"));
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        firebaseAdminInitialized = true;
+        console.log("Firebase Admin initialized via local JSON file");
+    } else {
+        console.warn("Firebase Admin NOT initialized: FIREBASE_SERVICE_ACCOUNT or serviceAccountKey.json missing.");
+    }
+} catch (err) {
+    console.error("Firebase Admin initialization FAILED:", err.message);
+}
+
+
+
 
 const app = express();
 
@@ -173,4 +204,40 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log("Server running on port " + PORT);
+});
+app.delete("/api/delete-user/:uid", async (req, res) => {
+    if (!firebaseAdminInitialized) {
+        return res.status(503).json({
+            success: false,
+            error: "Service Temporarily Unavailable",
+            details: "Firebase Admin SDK not initialized on server."
+        });
+    }
+
+    try {
+        const uid = req.params.uid;
+
+        // Delete user from Firebase Authentication
+        await admin.auth().deleteUser(uid);
+        console.log(`Successfully deleted user ${uid} from Firebase Auth`);
+
+        res.status(200).json({
+            success: true,
+            message: "User deleted from Firebase Authentication"
+        });
+
+    } catch (error) {
+        console.error("Error deleting user:", error);
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to delete user",
+            details: error.message
+        });
+    }
+});
+
+// Alias for non-api route if needed for backward compatibility
+app.delete("/delete-user/:uid", (req, res) => {
+    app._router.handle({ method: 'DELETE', url: `/api/delete-user/${req.params.uid}` }, req, res);
 });

@@ -288,9 +288,35 @@ export const AuthProvider = ({ children }) => {
         try {
             console.log("AuthContext: Deleting user profile and data from Firestore", userId);
 
+            // 1. Delete from Firebase Authentication via our Backend
+            const customApiUrl = import.meta.env.VITE_API_URL;
+            const fallbackUrl = 'https://aquamonitor-backend-bhdbbydhb5e9euan.eastasia-01.azurewebsites.net';
+            let apiUrl = customApiUrl || fallbackUrl;
+
+            // Security check for production (HTTPS)
+            if (window.location.protocol === 'https:' && apiUrl.includes('localhost')) {
+                apiUrl = fallbackUrl;
+            }
+
+            console.log(`AuthContext: Requesting Auth deletion from ${apiUrl}/delete-user/${userId}`);
+            
+            const authResponse = await fetch(`${apiUrl}/delete-user/${userId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!authResponse.ok) {
+                const errorData = await authResponse.json().catch(() => ({}));
+                console.error("AuthContext: Backend deletion failed:", errorData.error);
+                // We proceed to delete from Firestore anyway to keep UI clean, 
+                // but alert the admin if the permanent account deletion failed
+                console.warn("User record will be removed from Firestore, but Auth account might still exist.");
+            }
+
+            // 2. Delete from Firestore (Notifications + Profile)
             const batch = writeBatch(db);
 
-            // 1. Delete user's notifications
+            // Delete user's notifications
             const notificationsRef = collection(db, "notifications");
             const q = query(notificationsRef, where("userId", "==", userId));
             const snapshot = await getDocs(q);
@@ -299,11 +325,11 @@ export const AuthProvider = ({ children }) => {
                 batch.delete(doc.ref);
             });
 
-            // 2. Delete user profile
+            // Delete user profile
             const userRef = doc(db, "users", userId);
             batch.delete(userRef);
 
-            // Commit both operations
+            // Commit Firestore operations
             await batch.commit();
 
             return { success: true };

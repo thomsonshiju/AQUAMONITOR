@@ -29,3 +29,4 @@ build/
 
 # Project specific
 firmware/bin/
+serviceAccountKey.json
