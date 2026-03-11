@@ -111,22 +111,14 @@ app.post("/api/send-email", async (req, res) => {
     }
 });
 
-app.get("/", (req, res) => {
-    res.send("AquaMonitor Azure Backend is running... 🚀");
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-    console.log("Server running on port " + PORT);
-});
+// Broadcast Email Endpoint
 app.post("/api/broadcast-email", async (req, res) => {
-    const { users, subject, message } = req.body;
+    const { users, subject, message, html } = req.body;
 
-    if (!users || !subject || !message) {
+    if (!users || !subject || (!message && !html)) {
         return res.status(400).json({
             success: false,
-            error: "Missing users, subject or message"
+            error: "Missing users, subject or message/html content"
         });
     }
 
@@ -139,23 +131,28 @@ app.post("/api/broadcast-email", async (req, res) => {
             }
         });
 
-        for (const user of users) {
-            await transporter.sendMail({
+        const emailPromises = users.map(user => {
+            return transporter.sendMail({
                 from: `"AquaMonitor" <${process.env.EMAIL_USER}>`,
                 to: user.email,
                 subject: subject,
-                html: `
-                    <h2>${subject}</h2>
-                    <p>${message}</p>
-                    <hr/>
-                    <p style="font-size:12px;color:#777;">AquaMonitor System Notification</p>
+                html: html || `
+                    <div style="font-family: sans-serif; padding: 20px;">
+                        <h2 style="color: #2563EB;">${subject}</h2>
+                        <p>${message}</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                        <p style="font-size: 11px; color: #777;">AquaMonitor System Broadcast</p>
+                    </div>
                 `
             });
-        }
+        });
 
+        await Promise.all(emailPromises);
+
+        console.log(`Broadcast email sent to ${users.length} users`);
         res.json({
             success: true,
-            message: "Broadcast email sent successfully"
+            message: `Broadcast email sent to ${users.length} users successfully`
         });
 
     } catch (error) {
@@ -166,4 +163,14 @@ app.post("/api/broadcast-email", async (req, res) => {
             details: error.message
         });
     }
+});
+
+app.get("/", (req, res) => {
+    res.send("AquaMonitor Azure Backend is running... 🚀");
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log("Server running on port " + PORT);
 });
