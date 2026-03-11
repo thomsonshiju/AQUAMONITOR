@@ -23,6 +23,33 @@ export default function SignUp() {
         }
     }, [user, navigate]);
 
+    const sendEmail = async (email) => {
+        try {
+            console.log("Attempting to send welcome email to:", email);
+            const response = await fetch(
+                "https://aquamonitor-backend-bhdbbydhb5e9euan.eastasia-01.azurewebsites.net/send-email",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ email }),
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Server responded with ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Email sent successfully! Response:", data);
+        } catch (error) {
+            console.error("Email sending failed:", error.message);
+            // We don't block the registration flow if email fails, but we log it
+        }
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -40,6 +67,8 @@ export default function SignUp() {
 
         try {
             await signup(formData.email, formData.password, formData.name);
+            // Send email
+            await sendEmail(formData.email);
             // Navigation handled by useEffect
         } catch (err) {
             console.error(err);
@@ -56,6 +85,9 @@ export default function SignUp() {
             if (!success) {
                 setError('Google Sign Up failed to sync with database.');
                 setLoading(false);
+            } else if (user?.email) {
+                // Send email for Google sign up if email is available
+                await sendEmail(user.email);
             }
             // Navigation handled by useEffect
         } catch (error) {

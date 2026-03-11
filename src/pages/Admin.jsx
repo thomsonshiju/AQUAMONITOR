@@ -142,7 +142,7 @@ function BroadcastNotificationPanel({
                             throw new Error('Your frontend is on HTTPS but trying to contact a local HTTP backend (localhost). Please deploy your backend and set VITE_API_URL, or use the Firebase Function provided!');
                         }
 
-                        const apiUrl = customApiUrl || 'http://localhost:3005';
+                        const apiUrl = customApiUrl || 'https://aquamonitor-backend-bhdbbydhb5e9euan.eastasia-01.azurewebsites.net';
                         const response = await fetch(`${apiUrl}/api/send-email`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
