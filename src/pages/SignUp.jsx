@@ -26,16 +26,23 @@ export default function SignUp() {
     const sendEmail = async (email) => {
         try {
             console.log("Attempting to send welcome email to:", email);
-            const response = await fetch(
-                "https://aquamonitor-backend-bhdbbydhb5e9euan.eastasia-01.azurewebsites.net/send-email",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ email }),
-                }
-            );
+            const customApiUrl = import.meta.env.VITE_API_URL;
+            const fallbackUrl = "https://aquamonitor-backend-bhdbbydhb5e9euan.eastasia-01.azurewebsites.net";
+            
+            let apiUrl = customApiUrl || fallbackUrl;
+
+            // Security check: If on HTTPS (Firebase) but API is localhost, force fallback
+            if (window.location.protocol === 'https:' && apiUrl.includes('localhost')) {
+                apiUrl = fallbackUrl;
+            }
+
+            const response = await fetch(`${apiUrl}/send-email`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email }),
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -43,10 +50,9 @@ export default function SignUp() {
             }
 
             const data = await response.json();
-            console.log("Email sent successfully! Response:", data);
+            console.log("Welcome Email sent successfully!");
         } catch (error) {
             console.error("Email sending failed:", error.message);
-            // We don't block the registration flow if email fails, but we log it
         }
     };
 

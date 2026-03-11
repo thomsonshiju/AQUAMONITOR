@@ -237,7 +237,8 @@ app.delete("/api/delete-user/:uid", async (req, res) => {
     }
 });
 
-// Alias for non-api route if needed for backward compatibility
+// Explicit routes for deletion
 app.delete("/delete-user/:uid", (req, res) => {
-    app._router.handle({ method: 'DELETE', url: `/api/delete-user/${req.params.uid}` }, req, res);
+    // Forward the request internally or just define the same handler
+    res.redirect(308, `/api/delete-user/${req.params.uid}`);
 });

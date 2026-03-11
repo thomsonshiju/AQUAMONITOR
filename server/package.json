@@ -2,11 +2,11 @@
     "name": "aquamonitor-backend",
     "version": "1.0.0",
     "description": "Backend API for AquaMonitor using Express and MySQL",
-    "main": "index.js",
+    "main": "backend/server.js",
     "type": "module",
     "scripts": {
-        "start": "node index.js",
-        "dev": "nodemon index.js"
+        "start": "node backend/server.js",
+        "dev": "nodemon backend/server.js"
     },
     "dependencies": {
         "cors": "^2.8.5",

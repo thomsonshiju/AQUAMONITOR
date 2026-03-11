@@ -298,9 +298,9 @@ export const AuthProvider = ({ children }) => {
                 apiUrl = fallbackUrl;
             }
 
-            console.log(`AuthContext: Requesting Auth deletion from ${apiUrl}/delete-user/${userId}`);
+            console.log(`AuthContext: Requesting Auth deletion from ${apiUrl}/api/delete-user/${userId}`);
             
-            const authResponse = await fetch(`${apiUrl}/delete-user/${userId}`, {
+            const authResponse = await fetch(`${apiUrl}/api/delete-user/${userId}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' }
             });
