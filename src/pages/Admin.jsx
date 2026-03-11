@@ -107,87 +107,82 @@ function BroadcastNotificationPanel({
             await Promise.all(promises);
 
             // Send Emails if selected
+            // Send Emails if selected
             if (sendEmail) {
                 const targetUsers = users.filter(u => targets.includes(u.id));
-                console.log(`Attempting to send emails to ${targetUsers.length} users`);
+                const validTargetUsers = targetUsers.filter(u => u.email);
+                
+                if (validTargetUsers.length > 0) {
+                    console.log(`Attempting to send broadcast email to ${validTargetUsers.length} users`);
 
-                const getTypeStyles = (type) => {
-                    const themes = {
-                        success: { color: '#10b981', label: 'SUCCESS', icon: '✅' },
-                        warning: { color: '#f59e0b', label: 'WARNING', icon: '⚠️' },
-                        error: { color: '#ef4444', label: 'CRITICAL', icon: '🚨' },
-                        info: { color: '#0ea5e9', label: 'INFORMATION', icon: 'ℹ️' }
+                    const getTypeStyles = (type) => {
+                        const themes = {
+                            success: { color: '#10b981', label: 'SUCCESS', icon: '✅' },
+                            warning: { color: '#f59e0b', label: 'WARNING', icon: '⚠️' },
+                            error: { color: '#ef4444', label: 'CRITICAL', icon: '🚨' },
+                            info: { color: '#0ea5e9', label: 'INFORMATION', icon: 'ℹ️' }
+                        };
+                        return themes[type] || themes.info;
                     };
-                    return themes[type] || themes.info;
-                };
 
-                const style = getTypeStyles(notificationData.type);
+                    const style = getTypeStyles(notificationData.type);
 
-                let successCount = 0;
-                let failCount = 0;
-                let lastError = '';
-
-                const emailPromises = targetUsers.map(async user => {
-                    if (!user.email) {
-                        console.warn(`User ${user.name} has no email, skipping.`);
-                        return;
-                    }
                     try {
-                        console.log(`Sending email to ${user.email}...`);
                         const customApiUrl = import.meta.env.VITE_API_URL;
-
-                        // If we are in production (HTTPS) but trying to hit localhost (HTTP), it will always fail.
-                        // Throw a more informative error.
-                        if (window.location.protocol === 'https:' && (!customApiUrl || customApiUrl.includes('localhost'))) {
-                            throw new Error('Your frontend is on HTTPS but trying to contact a local HTTP backend (localhost). Please deploy your backend and set VITE_API_URL, or use the Firebase Function provided!');
+                        const fallbackUrl = 'https://aquamonitor-backend-bhdbbydhb5e9euan.eastasia-01.azurewebsites.net';
+                        
+                        // Use provided URL or fallback to Azure
+                        let apiUrl = customApiUrl || fallbackUrl;
+                        
+                        // Security check for production (HTTPS)
+                        if (window.location.protocol === 'https:' && apiUrl.includes('localhost')) {
+                            console.warn("Detected localhost API on HTTPS frontend. Forcing fallback to Azure production backend.");
+                            apiUrl = fallbackUrl;
                         }
 
-                        const apiUrl = customApiUrl || 'https://aquamonitor-backend-bhdbbydhb5e9euan.eastasia-01.azurewebsites.net';
-                        const response = await fetch(`${apiUrl}/api/send-email`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                to: user.email,
-                                subject: `${style.icon} [${style.label}] ${notificationData.title}`,
-                                html: `
-                                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px 20px; color: #1e293b; background-color: #f8fafc; min-height: 100%;">
-                                    <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0;">
-                                        <!-- Decorative Header -->
-                                        <div style="background: ${style.color}; height: 8px;"></div>
-                                        
-                                        <div style="padding: 32px;">
-                                            <div style="display: flex; align-items: center; margin-bottom: 24px;">
-                                                <span style="background: ${style.color}15; color: ${style.color}; padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 800; letter-spacing: 0.05em; display: inline-block;">
-                                                    ${style.label}
-                                                </span>
-                                            </div>
-                                            
-                                            <h2 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px 0; line-height: 1.2;">
-                                                ${notificationData.title}
-                                            </h2>
-                                            
-                                            <div style="background: #f1f5f9; border-radius: 12px; padding: 24px; border-left: 4px solid ${style.color};">
-                                                <p style="font-size: 16px; line-height: 1.6; margin: 0; color: #334155;">
-                                                    ${notificationData.message}
-                                                </p>
-                                            </div>
-                                            
-                                            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-                                                <p style="font-size: 14px; color: #64748b; margin: 0;">
-                                                    Best regards,<br>
-                                                    <strong>AquaMonitor Systems</strong>
-                                                </p>
-                                            </div>
+                        // Prepare the message HTML
+                        const htmlMessage = `
+                            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px 20px; color: #1e293b; background-color: #f8fafc;">
+                                <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                    <div style="background: ${style.color}; height: 8px;"></div>
+                                    <div style="padding: 32px;">
+                                        <div style="margin-bottom: 24px;">
+                                            <span style="background: ${style.color}15; color: ${style.color}; padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 800; letter-spacing: 0.05em; display: inline-block;">
+                                                ${style.label}
+                                            </span>
                                         </div>
-                                        
-                                        <div style="background: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
-                                            <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; letter-spacing: 0.02em;">
-                                                This is a secure system broadcast. No action is required unless specified.
+                                        <h2 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 16px 0;">
+                                            ${notificationData.title}
+                                        </h2>
+                                        <div style="background: #f1f5f9; border-radius: 12px; padding: 24px; border-left: 4px solid ${style.color};">
+                                            <p style="font-size: 16px; line-height: 1.6; margin: 0; color: #334155;">
+                                                ${notificationData.message}
+                                            </p>
+                                        </div>
+                                        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+                                            <p style="font-size: 14px; color: #64748b; margin: 0;">
+                                                Best regards,<br>
+                                                <strong>AquaMonitor Systems</strong>
                                             </p>
                                         </div>
                                     </div>
+                                    <div style="background: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0; text-align: center;">
+                                        <p style="color: #94a3b8; font-size: 11px; margin: 0;">
+                                            This is a secure system broadcast. No action is required unless specified.
+                                        </p>
+                                    </div>
                                 </div>
-                            `
+                            </div>
+                        `;
+
+                        const response = await fetch(`${apiUrl}/api/broadcast-email`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                users: validTargetUsers.map(u => ({ email: u.email })),
+                                subject: `${style.icon} [${style.label}] ${notificationData.title}`,
+                                message: notificationData.message, 
+                                html: htmlMessage 
                             })
                         });
 
@@ -196,19 +191,11 @@ function BroadcastNotificationPanel({
                             throw new Error(errorData.details || errorData.error || `Server Error: ${response.status}`);
                         }
 
-                        console.log(`Email sent successfully to ${user.email}`);
-                        successCount++;
+                        console.log(`Broadcast email sent to ${validTargetUsers.length} users successfully`);
                     } catch (err) {
-                        console.error(`Failed to send email to ${user.email}:`, err);
-                        lastError = err.message;
-                        failCount++;
+                        console.error(`Failed to send broadcast email:`, err);
+                        alert(`Email sending failed: ${err.message}`);
                     }
-                });
-
-                await Promise.all(emailPromises);
-
-                if (failCount > 0) {
-                    alert(`Email sending complete.\nSuccess: ${successCount}\nFailed: ${failCount}\n\nLast Error: ${lastError}`);
                 }
             }
 
