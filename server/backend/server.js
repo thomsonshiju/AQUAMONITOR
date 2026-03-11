@@ -66,10 +66,10 @@ app.post("/send-email", async (req, res) => {
         res.json({ success: true, message: "Welcome email sent successfully", info: info.response });
     } catch (error) {
         console.error("Email processing error:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: "Failed to send email", 
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            error: "Failed to send email",
+            details: error.message
         });
     }
 });
@@ -103,10 +103,10 @@ app.post("/api/send-email", async (req, res) => {
         res.json({ success: true, message: "Email sent successfully", info: info.response });
     } catch (error) {
         console.error("Generic email error:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: "Failed to send email", 
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            error: "Failed to send email",
+            details: error.message
         });
     }
 });
@@ -119,4 +119,51 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log("Server running on port " + PORT);
+});
+app.post("/api/broadcast-email", async (req, res) => {
+    const { users, subject, message } = req.body;
+
+    if (!users || !subject || !message) {
+        return res.status(400).json({
+            success: false,
+            error: "Missing users, subject or message"
+        });
+    }
+
+    try {
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        for (const user of users) {
+            await transporter.sendMail({
+                from: `"AquaMonitor" <${process.env.EMAIL_USER}>`,
+                to: user.email,
+                subject: subject,
+                html: `
+                    <h2>${subject}</h2>
+                    <p>${message}</p>
+                    <hr/>
+                    <p style="font-size:12px;color:#777;">AquaMonitor System Notification</p>
+                `
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Broadcast email sent successfully"
+        });
+
+    } catch (error) {
+        console.error("Broadcast email error:", error);
+        res.status(500).json({
+            success: false,
+            error: "Failed to send broadcast email",
+            details: error.message
+        });
+    }
 });
