@@ -205,7 +205,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log("Server running on port " + PORT);
 });
-app.delete("/api/delete-user/:uid", async (req, res) => {
+const deleteUserHandler = async (req, res) => {
     if (!firebaseAdminInitialized) {
         return res.status(503).json({
             success: false,
@@ -216,29 +216,14 @@ app.delete("/api/delete-user/:uid", async (req, res) => {
 
     try {
         const uid = req.params.uid;
-
-        // Delete user from Firebase Authentication
         await admin.auth().deleteUser(uid);
         console.log(`Successfully deleted user ${uid} from Firebase Auth`);
-
-        res.status(200).json({
-            success: true,
-            message: "User deleted from Firebase Authentication"
-        });
-
+        res.status(200).json({ success: true, message: "User deleted from Firebase Authentication" });
     } catch (error) {
         console.error("Error deleting user:", error);
-
-        res.status(500).json({
-            success: false,
-            error: "Failed to delete user",
-            details: error.message
-        });
+        res.status(500).json({ success: false, error: "Failed to delete user", details: error.message });
     }
-});
+};
 
-// Explicit routes for deletion
-app.delete("/delete-user/:uid", (req, res) => {
-    // Forward the request internally or just define the same handler
-    res.redirect(308, `/api/delete-user/${req.params.uid}`);
-});
+app.delete("/api/delete-user/:uid", deleteUserHandler);
+app.delete("/delete-user/:uid", deleteUserHandler);

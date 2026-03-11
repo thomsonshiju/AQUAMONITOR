@@ -300,9 +300,11 @@ export const AuthProvider = ({ children }) => {
 
             console.log(`AuthContext: Requesting Auth deletion from ${apiUrl}/api/delete-user/${userId}`);
             
+            // Note: We remove Content-Type because we have no body. 
+            // In some browsers, sending Content-Type without a body for DELETE causes a 'Failed to fetch' error.
             const authResponse = await fetch(`${apiUrl}/api/delete-user/${userId}`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' }
+                mode: 'cors'
             });
 
             if (!authResponse.ok) {
