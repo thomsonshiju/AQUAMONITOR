@@ -32,7 +32,7 @@ transporter.verify(function (error, success) {
 
 // ... (rest of the file until endpoints)
 
-// Send Email Endpoint
+// Send Email Endpoint (Generic)
 app.post('/api/send-email', async (req, res) => {
     const { to, subject, html } = req.body;
 
@@ -46,7 +46,7 @@ app.post('/api/send-email', async (req, res) => {
     }
 
     const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: `AquaMonitor <${process.env.EMAIL_USER}>`,
         to: to,
         subject: subject,
         html: html
@@ -58,6 +58,47 @@ app.post('/api/send-email', async (req, res) => {
         res.json({ success: true, message: 'Email sent successfully', info });
     } catch (error) {
         console.error('Error sending email:', error);
+        res.status(500).json({ error: 'Failed to send email', details: error.message });
+    }
+});
+
+// Registration Email Endpoint (Specific format from user request)
+app.post('/send-email', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Missing email field' });
+    }
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error('Email credentials missing in .env');
+        return res.status(500).json({ error: 'Server Email Configuration Error' });
+    }
+
+    const mailOptions = {
+        from: `AquaMonitor <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Welcome to AquaMonitor! 🌊',
+        html: `
+            <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #2563EB;">Registration Successful!</h2>
+                <p>Hello,</p>
+                <p>Thank you for registering with <strong>AquaMonitor</strong>. Your account has been successfully created.</p>
+                <p>You can now log in to the dashboard to monitor your water systems.</p>
+                <br/>
+                <p>Best regards,<br/>The AquaMonitor Team</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+                <p style="font-size: 0.8em; color: #777;">This is an automated message, please do not reply.</p>
+            </div>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Registration Email sent to ' + email + ': ' + info.response);
+        res.json({ success: true, message: 'Registration email sent successfully' });
+    } catch (error) {
+        console.error('Error sending registration email:', error);
         res.status(500).json({ error: 'Failed to send email', details: error.message });
     }
 });
